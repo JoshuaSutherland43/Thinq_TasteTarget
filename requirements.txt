@@ -1,0 +1,31 @@
+# Web Frameworks
+streamlit==1.29.0
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# HTTP/Networking
+requests==2.31.0
+httpx==0.25.2
+
+# Data Processing & Visualization
+pandas==2.1.4
+plotly==5.18.0
+
+# Data Validation
+pydantic==2.5.0
+
+# AI/OpenAI
+openai==0.28.1
+
+# Environment Configuration
+python-dotenv==1.0.0
+
+# FastAPI Dependencies
+python-multipart==0.0.6
+aiofiles==23.2.1
+
+# CORS Support (included with FastAPI)
+# fastapi.middleware.cors is part of FastAPI
+
+# Type Hints (usually included with Python 3.9+)
+typing-extensions==4.8.0
