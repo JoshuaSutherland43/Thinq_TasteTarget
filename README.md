@@ -2,6 +2,20 @@
 
 TasteTarget is a B2B SaaS platform that helps brands and creators identify and target audiences using cultural intelligence instead of demographics. It generates taste-based customer personas and personalized marketing campaigns in seconds.
 
+---
+## .env Setup
+```
+LLAMA_API_KEY=your_openai_api_key_here
+QLOO_API_KEY=QLOO API here
+QLOO_API_URL=https://hackathon.api.qloo.com
+DALLE_ENABLED=false
+APP_ENV=development
+LOG_LEVEL=INFO
+```
+
+---
+
+
 ## 🚀 Features
 
 - **Taste-Based Personas**: Generate detailed customer personas based on cultural interests and behaviors
