@@ -1,1 +1,1 @@
-# Custom Widgets (Optional)
+# 	Optional reusable UI widget (e.g., a nicely styled card to show cultural personas in Streamlit).

@@ -1,1 +1,1 @@
-# Pydantic models
+# Contains Pydantic models for validating request/response payloads between frontend and backend.

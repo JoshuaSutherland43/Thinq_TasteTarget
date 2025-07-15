@@ -1,3 +1,5 @@
+#	Defines custom UI settings for Streamlit, like theme colors, fonts, and layout preferences.
+
 [theme]
 primaryColor = "#667eea"
 backgroundColor = "#FFFFFF"

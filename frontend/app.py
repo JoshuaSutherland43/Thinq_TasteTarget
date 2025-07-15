@@ -1,3 +1,5 @@
+# The main app file for Streamlit UI. Renders the form, sends requests to backend, and displays persona + copy output.
+
 import streamlit as st
 import requests
 import json

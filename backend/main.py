@@ -1,3 +1,5 @@
+# Entry point for the FastAPI server. Defines app initialization and includes all routes.
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
