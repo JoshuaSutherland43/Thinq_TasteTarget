@@ -1,1 +1,0 @@
-# Formats persona or copy results into clean structures (e.g., for PDF generation or UI rendering).
