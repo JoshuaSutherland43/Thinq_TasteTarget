@@ -23,7 +23,7 @@ QLOO_API_URL = os.getenv("QLOO_API_URL", "https://hackathon.api.qloo.com")
 MODELS = {
     "mistral": "mistralai/Mistral-7B-Instruct-v0.3",
     "flan": "google/flan-t5-large",
-    "zephyr": "HuggingFaceH4/zephyr-7b-beta"  # Alternative to Mistral
+    "zephyr": "HuggingFaceH4/zephyr-7b-beta"
 }
 
 # Select models for different tasks
@@ -100,74 +100,84 @@ class HealthResponse(BaseModel):
     qloo_connected: bool
     huggingface_connected: bool
 
-# Qloo API Integration
+# Qloo API Integration with correct endpoints
 async def call_qloo_api(product_info: dict) -> List[dict]:
     """
-    Call Qloo API for taste-based insights
+    Call Qloo API v2 for taste-based insights
     """
     if not QLOO_API_KEY:
         logger.warning("QLOO_API_KEY not found, using mock data")
         return await mock_qloo_api(product_info)
     
     headers = {
-        "x-api-key": QLOO_API_KEY,
+        "X-Api-Key": QLOO_API_KEY,  # Correct header format
         "Content-Type": "application/json"
     }
     
-    # Prepare the search query based on product info
-    search_query = f"{product_info.get('product_name', '')} {' '.join(product_info.get('brand_values', []))}"
-    
-    # Try multiple Qloo endpoints to get taste data
     clusters = []
     
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            # Try to get taste data for the product category
-            # Note: Adjust these endpoints based on Qloo's actual API documentation
+            # Use Qloo v2 insights endpoint
+            # We'll query for different demographic and interest combinations
             
-            # Example: Search for similar entities
-            search_payload = {
-                "query": search_query,
-                "limit": 5
+            # Define some relevant tags based on product values
+            tag_mappings = {
+                "sustainability": ["urn:tag:genre:lifestyle:eco-friendly", "urn:tag:genre:lifestyle:sustainable"],
+                "innovation": ["urn:tag:genre:tech:innovative", "urn:tag:genre:lifestyle:modern"],
+                "luxury": ["urn:tag:genre:lifestyle:luxury", "urn:tag:genre:lifestyle:premium"],
+                "minimalism": ["urn:tag:genre:lifestyle:minimalist", "urn:tag:genre:lifestyle:simple"],
+                "ethical": ["urn:tag:genre:lifestyle:ethical", "urn:tag:genre:lifestyle:conscious"]
             }
             
-            # Try entity search
-            try:
-                response = await client.post(
-                    f"{QLOO_API_URL}/search",
-                    headers=headers,
-                    json=search_payload
-                )
-                if response.status_code == 200:
-                    search_results = response.json()
-                    logger.info(f"Qloo search returned: {search_results}")
-            except Exception as e:
-                logger.error(f"Qloo search error: {e}")
-            
-            # Try to get taste correlations
-            # This is a hypothetical endpoint - adjust based on actual Qloo API
-            for value in product_info.get('brand_values', [])[:2]:
+            # Query Qloo for insights based on brand values
+            for i, value in enumerate(product_info.get('brand_values', [])[:3]):
                 try:
-                    correlation_payload = {
-                        "entity": value,
-                        "category": "lifestyle"
+                    # Get relevant tags for this value
+                    tags = tag_mappings.get(value, [f"urn:tag:genre:lifestyle:{value}"])
+                    
+                    # Build query URL
+                    base_url = f"{QLOO_API_URL}/v2/insights"
+                    params = {
+                        "filter.type": "urn:demographics",
+                        "signal.interests.tags": tags[0] if tags else f"urn:tag:genre:lifestyle:{value}"
                     }
                     
-                    response = await client.post(
-                        f"{QLOO_API_URL}/correlations",
-                        headers=headers,
-                        json=correlation_payload
-                    )
+                    # Convert params to URL query string
+                    query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+                    url = f"{base_url}?{query_string}"
+                    
+                    logger.info(f"Calling Qloo API: {url}")
+                    response = await client.get(url, headers=headers)
                     
                     if response.status_code == 200:
-                        correlations = response.json()
-                        # Convert Qloo data to our cluster format
-                        cluster = convert_qloo_to_cluster(correlations, value)
+                        insights = response.json()
+                        logger.info(f"Qloo insights received for {value}")
+                        
+                        # Convert Qloo insights to our cluster format
+                        cluster = convert_qloo_insights_to_cluster(insights, value, i)
+                        if cluster:
+                            clusters.append(cluster)
+                    else:
+                        logger.warning(f"Qloo API returned {response.status_code} for {value}: {response.text}")
+                        
+                except Exception as e:
+                    logger.error(f"Error querying Qloo for {value}: {e}")
+            
+            # If we need more clusters, try general lifestyle query
+            if len(clusters) < 2:
+                try:
+                    url = f"{QLOO_API_URL}/v2/insights?filter.type=urn:demographics&signal.interests.tags=urn:tag:genre:lifestyle:general"
+                    response = await client.get(url, headers=headers)
+                    
+                    if response.status_code == 200:
+                        insights = response.json()
+                        cluster = convert_qloo_insights_to_cluster(insights, "balanced", len(clusters))
                         if cluster:
                             clusters.append(cluster)
                             
                 except Exception as e:
-                    logger.error(f"Qloo correlation error for {value}: {e}")
+                    logger.error(f"Error in general Qloo query: {e}")
                     
     except Exception as e:
         logger.error(f"Qloo API error: {str(e)}")
@@ -177,26 +187,100 @@ async def call_qloo_api(product_info: dict) -> List[dict]:
         logger.info(f"Successfully retrieved {len(clusters)} clusters from Qloo")
         return clusters
     else:
-        logger.warning("No data from Qloo API, using mock data")
+        logger.warning("No usable data from Qloo API, using mock data")
         return await mock_qloo_api(product_info)
 
-def convert_qloo_to_cluster(qloo_data: dict, cluster_name: str) -> dict:
-    """Convert Qloo API response to our cluster format"""
+def convert_qloo_insights_to_cluster(insights: dict, cluster_name: str, index: int) -> dict:
+    """Convert Qloo API v2 insights response to our cluster format"""
     try:
-        # This is a hypothetical conversion - adjust based on actual Qloo response format
-        return {
-            "cluster_id": f"qloo_{cluster_name}",
+        # Extract relevant data from Qloo insights
+        # The actual structure depends on Qloo's response format
+        
+        # Default interests structure
+        cluster = {
+            "cluster_id": f"qloo_{cluster_name}_{index}",
             "interests": {
-                "music": qloo_data.get("music", ["indie", "alternative", "electronic"])[:5],
-                "reading": qloo_data.get("books", ["contemporary fiction", "non-fiction", "blogs"])[:5],
-                "dining": qloo_data.get("dining", ["local cuisine", "cafes", "healthy food"])[:5],
-                "travel": qloo_data.get("travel", ["city breaks", "nature", "cultural sites"])[:5],
-                "fashion": qloo_data.get("fashion", ["contemporary", "sustainable", "minimalist"])[:5]
+                "music": [],
+                "reading": [],
+                "dining": [],
+                "travel": [],
+                "fashion": []
             }
         }
+        
+        # Parse insights data
+        if "data" in insights:
+            data = insights["data"]
+            
+            # Extract interests from various categories
+            # This is based on typical Qloo response structure
+            if isinstance(data, list):
+                for item in data[:10]:  # Limit to first 10 items
+                    # Extract relevant fields based on item type
+                    if "category" in item and "name" in item:
+                        category = item["category"].lower()
+                        name = item["name"]
+                        
+                        # Map to our categories
+                        if "music" in category or "artist" in category:
+                            cluster["interests"]["music"].append(name)
+                        elif "book" in category or "author" in category:
+                            cluster["interests"]["reading"].append(name)
+                        elif "restaurant" in category or "food" in category:
+                            cluster["interests"]["dining"].append(name)
+                        elif "destination" in category or "travel" in category:
+                            cluster["interests"]["travel"].append(name)
+                        elif "brand" in category or "fashion" in category:
+                            cluster["interests"]["fashion"].append(name)
+            
+            # Ensure each category has at least some interests
+            for category in cluster["interests"]:
+                if not cluster["interests"][category]:
+                    # Add default interests based on cluster name
+                    cluster["interests"][category] = get_default_interests(category, cluster_name)
+        
+        return cluster
+        
     except Exception as e:
-        logger.error(f"Error converting Qloo data: {e}")
+        logger.error(f"Error converting Qloo insights: {e}")
         return None
+
+def get_default_interests(category: str, cluster_name: str) -> List[str]:
+    """Get default interests for a category based on cluster name"""
+    defaults = {
+        "music": {
+            "sustainability": ["indie folk", "acoustic", "world music"],
+            "innovation": ["electronic", "experimental", "synth"],
+            "luxury": ["jazz", "classical", "lounge"],
+            "default": ["pop", "indie", "alternative"]
+        },
+        "reading": {
+            "sustainability": ["eco blogs", "philosophy", "nature writing"],
+            "innovation": ["tech blogs", "sci-fi", "futurism"],
+            "luxury": ["art books", "biographies", "luxury magazines"],
+            "default": ["bestsellers", "blogs", "magazines"]
+        },
+        "dining": {
+            "sustainability": ["farm-to-table", "vegan", "organic"],
+            "innovation": ["molecular gastronomy", "fusion", "pop-ups"],
+            "luxury": ["fine dining", "michelin", "wine bars"],
+            "default": ["cafes", "local cuisine", "brunch"]
+        },
+        "travel": {
+            "sustainability": ["eco-lodges", "hiking", "nature"],
+            "innovation": ["smart cities", "tech hubs", "urban"],
+            "luxury": ["resorts", "exclusive destinations", "yachts"],
+            "default": ["city breaks", "cultural sites", "weekend trips"]
+        },
+        "fashion": {
+            "sustainability": ["sustainable brands", "vintage", "ethical"],
+            "innovation": ["techwear", "smart fashion", "futuristic"],
+            "luxury": ["designer", "couture", "bespoke"],
+            "default": ["contemporary", "trendy", "seasonal"]
+        }
+    }
+    
+    return defaults.get(category, {}).get(cluster_name, defaults[category]["default"])[:5]
 
 async def mock_qloo_api(product_info: dict) -> List[dict]:
     """Fallback mock data when Qloo API is unavailable"""
@@ -226,18 +310,6 @@ async def mock_qloo_api(product_info: dict) -> List[dict]:
                 "dining": ["trendy restaurants", "food tech", "molecular gastronomy", "pop-ups", "delivery apps"],
                 "travel": ["smart cities", "tech hubs", "conferences", "urban exploration", "digital nomad spots"],
                 "fashion": ["techwear", "designer collaborations", "smart accessories", "limited editions", "streetwear"]
-            }
-        })
-    
-    if "luxury" in product_info.get("brand_values", []) or "quality" in product_info.get("brand_values", []):
-        clusters.append({
-            "cluster_id": "premium_lifestyle",
-            "interests": {
-                "music": ["jazz", "classical", "lounge", "live performances", "exclusive venues"],
-                "reading": ["luxury magazines", "art books", "biographies", "investment guides", "wine publications"],
-                "dining": ["fine dining", "michelin restaurants", "wine bars", "private clubs", "chef's table"],
-                "travel": ["luxury resorts", "private jets", "exclusive destinations", "cultural capitals", "yacht trips"],
-                "fashion": ["haute couture", "designer brands", "bespoke tailoring", "luxury accessories", "timeless pieces"]
             }
         })
     
@@ -573,6 +645,30 @@ async def generate_targeting(product_input: ProductInput):
         logger.error(f"Error in generate_targeting: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/test-qloo")
+async def test_qloo_connection():
+    """Test Qloo API connection with a simple query"""
+    if not QLOO_API_KEY:
+        return {"error": "QLOO_API_KEY not configured"}
+    
+    headers = {
+        "X-Api-Key": QLOO_API_KEY
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Test with the example URL format
+            url = f"{QLOO_API_URL}/v2/insights?filter.type=urn:demographics&signal.interests.tags=urn:tag:genre:lifestyle:general"
+            response = await client.get(url, headers=headers)
+            
+            return {
+                "status": "success" if response.status_code == 200 else "error",
+                "status_code": response.status_code,
+                "response": response.json() if response.status_code == 200 else response.text
+            }
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/api/test-connections")
 async def test_connections():
     """Test API connections"""
@@ -584,12 +680,9 @@ async def test_connections():
     # Test Qloo
     if QLOO_API_KEY:
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(
-                    QLOO_API_URL,
-                    headers={"x-api-key": QLOO_API_KEY}
-                )
-                results["qloo"]["status"] = "connected" if response.status_code < 500 else "error"
+            result = await test_qloo_connection()
+            results["qloo"]["status"] = "connected" if result.get("status") == "success" else "error"
+            results["qloo"]["details"] = result
         except:
             results["qloo"]["status"] = "error"
     
