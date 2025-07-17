@@ -9,29 +9,18 @@ import httpx
 from datetime import datetime
 import logging
 import asyncio
-import re
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
 
 # API Configuration
-HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 QLOO_API_KEY = os.getenv("QLOO_API_KEY")
 QLOO_API_URL = os.getenv("QLOO_API_URL", "https://hackathon.api.qloo.com")
 
-# Hugging Face Models
-MODELS = {
-    "mistral": "mistralai/Mistral-7B-Instruct-v0.3",
-    "flan": "google/flan-t5-large",
-    "zephyr": "HuggingFaceH4/zephyr-7b-beta"
-}
-
-# Select models for different tasks
-PERSONA_MODEL = MODELS["mistral"]
-COPY_MODEL = MODELS["mistral"]
-FALLBACK_MODEL = MODELS["flan"]
-
-HF_API_BASE = "https://api-inference.huggingface.co/models"
+# Initialize OpenAI client
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 APP_ENV = os.getenv("APP_ENV", "development")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -46,9 +35,9 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="TasteTarget API - Qloo + HuggingFace",
-    description="AI-Powered Cultural Targeting using Qloo's Taste AI and Open Source Models",
-    version="2.0.0"
+    title="TasteTarget API - Qloo + OpenAI",
+    description="AI-Powered Cultural Targeting using Qloo's Taste AI and OpenAI GPT-4",
+    version="3.0.0"
 )
 
 # Configure CORS
@@ -91,26 +80,76 @@ class TasteTargetResponse(BaseModel):
     campaign_copies: List[CampaignCopy]
     generation_timestamp: str
     suggestions: Dict[str, List[str]]
-    data_source: str = Field(default="Qloo Taste AI + HuggingFace")
+    data_source: str = Field(default="Qloo Taste AI + OpenAI GPT-4")
 
 class HealthResponse(BaseModel):
     status: str
     timestamp: str
     version: str
     qloo_connected: bool
-    huggingface_connected: bool
+    openai_connected: bool
 
-# Qloo API Integration with correct endpoints
+# OpenAI Integration
+async def call_openai_api(prompt: str, temperature: float = 0.7, model: str = "gpt-4o-mini") -> str:
+    """Call OpenAI API for text generation"""
+    try:
+        # Use the async approach with asyncio
+        response = await asyncio.to_thread(
+            client.chat.completions.create,
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are a marketing expert specializing in cultural intelligence and audience targeting. Always respond with valid JSON when asked."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=temperature,
+            max_tokens=1000
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        logger.error(f"OpenAI API error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
+
+def extract_json_from_response(response: str) -> dict:
+    """Extract JSON from OpenAI response"""
+    try:
+        # Clean response
+        response = response.strip()
+        
+        # Remove markdown code blocks if present
+        if response.startswith("```json"):
+            response = response[7:]
+        if response.startswith("```"):
+            response = response[3:]
+        if response.endswith("```"):
+            response = response[:-3]
+        
+        # Find JSON in response
+        json_start = response.find('{')
+        json_end = response.rfind('}') + 1
+        
+        if json_start != -1 and json_end > json_start:
+            json_str = response[json_start:json_end]
+            return json.loads(json_str)
+        
+        # Try to parse entire response as JSON
+        return json.loads(response)
+        
+    except Exception as e:
+        logger.warning(f"JSON parse error: {e}")
+        logger.debug(f"Response was: {response}")
+        return {}
+
+# Qloo API Integration (same as before)
 async def call_qloo_api(product_info: dict) -> List[dict]:
-    """
-    Call Qloo API v2 for taste-based insights
-    """
+    """Call Qloo API v2 for taste-based insights"""
     if not QLOO_API_KEY:
         logger.warning("QLOO_API_KEY not found, using mock data")
         return await mock_qloo_api(product_info)
     
     headers = {
-        "X-Api-Key": QLOO_API_KEY,  # Correct header format
+        "X-Api-Key": QLOO_API_KEY,
         "Content-Type": "application/json"
     }
     
@@ -118,32 +157,26 @@ async def call_qloo_api(product_info: dict) -> List[dict]:
     
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            # Use Qloo v2 insights endpoint
-            # We'll query for different demographic and interest combinations
-            
-            # Define some relevant tags based on product values
             tag_mappings = {
                 "sustainability": ["urn:tag:genre:lifestyle:eco-friendly", "urn:tag:genre:lifestyle:sustainable"],
                 "innovation": ["urn:tag:genre:tech:innovative", "urn:tag:genre:lifestyle:modern"],
                 "luxury": ["urn:tag:genre:lifestyle:luxury", "urn:tag:genre:lifestyle:premium"],
                 "minimalism": ["urn:tag:genre:lifestyle:minimalist", "urn:tag:genre:lifestyle:simple"],
-                "ethical": ["urn:tag:genre:lifestyle:ethical", "urn:tag:genre:lifestyle:conscious"]
+                "ethical": ["urn:tag:genre:lifestyle:ethical", "urn:tag:genre:lifestyle:conscious"],
+                "quality": ["urn:tag:genre:lifestyle:quality", "urn:tag:genre:lifestyle:premium"]
             }
             
             # Query Qloo for insights based on brand values
             for i, value in enumerate(product_info.get('brand_values', [])[:3]):
                 try:
-                    # Get relevant tags for this value
                     tags = tag_mappings.get(value, [f"urn:tag:genre:lifestyle:{value}"])
                     
-                    # Build query URL
                     base_url = f"{QLOO_API_URL}/v2/insights"
                     params = {
                         "filter.type": "urn:demographics",
                         "signal.interests.tags": tags[0] if tags else f"urn:tag:genre:lifestyle:{value}"
                     }
                     
-                    # Convert params to URL query string
                     query_string = "&".join([f"{k}={v}" for k, v in params.items()])
                     url = f"{base_url}?{query_string}"
                     
@@ -154,35 +187,18 @@ async def call_qloo_api(product_info: dict) -> List[dict]:
                         insights = response.json()
                         logger.info(f"Qloo insights received for {value}")
                         
-                        # Convert Qloo insights to our cluster format
                         cluster = convert_qloo_insights_to_cluster(insights, value, i)
                         if cluster:
                             clusters.append(cluster)
                     else:
-                        logger.warning(f"Qloo API returned {response.status_code} for {value}: {response.text}")
+                        logger.warning(f"Qloo API returned {response.status_code} for {value}")
                         
                 except Exception as e:
                     logger.error(f"Error querying Qloo for {value}: {e}")
-            
-            # If we need more clusters, try general lifestyle query
-            if len(clusters) < 2:
-                try:
-                    url = f"{QLOO_API_URL}/v2/insights?filter.type=urn:demographics&signal.interests.tags=urn:tag:genre:lifestyle:general"
-                    response = await client.get(url, headers=headers)
-                    
-                    if response.status_code == 200:
-                        insights = response.json()
-                        cluster = convert_qloo_insights_to_cluster(insights, "balanced", len(clusters))
-                        if cluster:
-                            clusters.append(cluster)
-                            
-                except Exception as e:
-                    logger.error(f"Error in general Qloo query: {e}")
                     
     except Exception as e:
         logger.error(f"Qloo API error: {str(e)}")
     
-    # If we got data from Qloo, use it; otherwise fall back to mock
     if clusters:
         logger.info(f"Successfully retrieved {len(clusters)} clusters from Qloo")
         return clusters
@@ -193,10 +209,6 @@ async def call_qloo_api(product_info: dict) -> List[dict]:
 def convert_qloo_insights_to_cluster(insights: dict, cluster_name: str, index: int) -> dict:
     """Convert Qloo API v2 insights response to our cluster format"""
     try:
-        # Extract relevant data from Qloo insights
-        # The actual structure depends on Qloo's response format
-        
-        # Default interests structure
         cluster = {
             "cluster_id": f"qloo_{cluster_name}_{index}",
             "interests": {
@@ -208,15 +220,12 @@ def convert_qloo_insights_to_cluster(insights: dict, cluster_name: str, index: i
             }
         }
         
-        # Parse insights data
+        # Parse Qloo insights data
         if "data" in insights:
             data = insights["data"]
             
-            # Extract interests from various categories
-            # This is based on typical Qloo response structure
             if isinstance(data, list):
-                for item in data[:10]:  # Limit to first 10 items
-                    # Extract relevant fields based on item type
+                for item in data[:10]:
                     if "category" in item and "name" in item:
                         category = item["category"].lower()
                         name = item["name"]
@@ -236,7 +245,6 @@ def convert_qloo_insights_to_cluster(insights: dict, cluster_name: str, index: i
             # Ensure each category has at least some interests
             for category in cluster["interests"]:
                 if not cluster["interests"][category]:
-                    # Add default interests based on cluster name
                     cluster["interests"][category] = get_default_interests(category, cluster_name)
         
         return cluster
@@ -288,7 +296,6 @@ async def mock_qloo_api(product_info: dict) -> List[dict]:
     
     clusters = []
     
-    # Generate clusters based on brand values
     if "sustainability" in product_info.get("brand_values", []) or "ethical" in product_info.get("brand_values", []):
         clusters.append({
             "cluster_id": "eco_conscious",
@@ -313,7 +320,6 @@ async def mock_qloo_api(product_info: dict) -> List[dict]:
             }
         })
     
-    # Always add a balanced lifestyle cluster
     if len(clusters) < 3:
         clusters.append({
             "cluster_id": "balanced_modern",
@@ -328,103 +334,9 @@ async def mock_qloo_api(product_info: dict) -> List[dict]:
     
     return clusters[:3]
 
-# Hugging Face Integration
-async def call_huggingface_api(
-    prompt: str, 
-    model: str = PERSONA_MODEL,
-    max_tokens: int = 500, 
-    temperature: float = 0.7,
-    retry_with_fallback: bool = True
-) -> str:
-    """Call Hugging Face API with specified model"""
-    headers = {
-        "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    # Format prompt based on model
-    if "mistral" in model.lower() or "zephyr" in model.lower():
-        formatted_prompt = f"<s>[INST] {prompt} [/INST]"
-    else:
-        formatted_prompt = prompt
-    
-    payload = {
-        "inputs": formatted_prompt,
-        "parameters": {
-            "max_new_tokens": max_tokens,
-            "temperature": temperature,
-            "do_sample": True,
-            "return_full_text": False,
-            "repetition_penalty": 1.1
-        }
-    }
-    
-    max_retries = 3
-    current_model = model
-    
-    for attempt in range(max_retries):
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                api_url = f"{HF_API_BASE}/{current_model}"
-                response = await client.post(api_url, headers=headers, json=payload)
-                
-                if response.status_code == 503:
-                    logger.info(f"Model {current_model} loading, waiting 20 seconds...")
-                    await asyncio.sleep(20)
-                    continue
-                
-                if response.status_code != 200:
-                    logger.error(f"API returned {response.status_code}: {response.text}")
-                    if retry_with_fallback and current_model != FALLBACK_MODEL:
-                        logger.info(f"Switching to fallback model: {FALLBACK_MODEL}")
-                        current_model = FALLBACK_MODEL
-                        continue
-                
-                result = response.json()
-                
-                if isinstance(result, list) and len(result) > 0:
-                    return clean_response(result[0].get("generated_text", ""))
-                elif isinstance(result, dict) and "generated_text" in result:
-                    return clean_response(result["generated_text"])
-                    
-        except Exception as e:
-            logger.error(f"HuggingFace API error: {e}")
-            if attempt < max_retries - 1:
-                await asyncio.sleep(5)
-                continue
-    
-    raise HTTPException(status_code=500, detail="Failed to generate content")
-
-def clean_response(text: str) -> str:
-    """Clean up model response"""
-    text = re.sub(r'<s>|</s>|\[INST\]|\[/INST\]', '', text)
-    return ' '.join(text.split()).strip()
-
-def extract_json_from_response(response: str) -> dict:
-    """Extract JSON from model response"""
-    try:
-        response = response.strip()
-        
-        # Find JSON in response
-        json_start = response.find('{')
-        json_end = response.rfind('}') + 1
-        
-        if json_start != -1 and json_end > json_start:
-            json_str = response[json_start:json_end]
-            json_str = json_str.replace("'", '"')
-            json_str = re.sub(r',\s*}', '}', json_str)
-            json_str = re.sub(r',\s*]', ']', json_str)
-            return json.loads(json_str)
-        
-        return json.loads(response)
-        
-    except Exception as e:
-        logger.warning(f"JSON parse error: {e}")
-        return {}
-
-# Persona and Copy Generation
-async def generate_personas_with_hf(product_input: ProductInput, taste_clusters: List[dict]) -> List[TastePersona]:
-    """Generate personas using Hugging Face"""
+# Persona Generation with OpenAI
+async def generate_personas_with_openai(product_input: ProductInput, taste_clusters: List[dict]) -> List[TastePersona]:
+    """Generate personas using OpenAI GPT-4"""
     personas = []
     
     for i, cluster in enumerate(taste_clusters):
@@ -436,21 +348,21 @@ async def generate_personas_with_hf(product_input: ProductInput, taste_clusters:
 
 Product: {product_input.product_description}
 Brand values: {', '.join(product_input.brand_values)}
-Cultural interests: {'; '.join(interests_summary)}
+Cultural interests from data: {'; '.join(interests_summary)}
 
-Generate a JSON with:
+Generate a JSON object with exactly these fields:
 {{
-  "persona_name": "Creative 2-3 word name",
-  "description": "2-3 sentence description",
+  "persona_name": "Creative 2-3 word name that captures their essence",
+  "description": "2-3 sentence description of who they are and what drives them",
   "psychographics": ["trait1", "trait2", "trait3", "trait4", "trait5"],
   "preferred_channels": ["channel1", "channel2", "channel3", "channel4"],
   "influencer_types": ["type1", "type2", "type3"]
 }}
 
-Return only JSON, no other text."""
+Important: Return ONLY the JSON object, no other text or markdown."""
 
         try:
-            response = await call_huggingface_api(prompt, temperature=0.7)
+            response = await call_openai_api(prompt, temperature=0.7)
             persona_data = extract_json_from_response(response)
             
             if persona_data and "persona_name" in persona_data:
@@ -463,8 +375,9 @@ Return only JSON, no other text."""
                     preferred_channels=persona_data.get('preferred_channels', ['Instagram', 'Email', 'YouTube']),
                     influencer_types=persona_data.get('influencer_types', ['Micro-influencers', 'Experts'])
                 ))
+                logger.info(f"Successfully generated persona: {persona_data.get('persona_name')}")
             else:
-                raise ValueError("Invalid persona data")
+                raise ValueError("Invalid persona data from OpenAI")
                 
         except Exception as e:
             logger.error(f"Persona generation error: {e}")
@@ -491,30 +404,38 @@ def create_fallback_persona(cluster: dict, index: int) -> TastePersona:
         influencer_types=["Industry experts", "Lifestyle creators", "Thought leaders"]
     )
 
-async def generate_campaign_copy_with_hf(product_input: ProductInput, personas: List[TastePersona]) -> List[CampaignCopy]:
-    """Generate campaign copy using Hugging Face"""
+async def generate_campaign_copy_with_openai(product_input: ProductInput, personas: List[TastePersona]) -> List[CampaignCopy]:
+    """Generate campaign copy using OpenAI"""
     copies = []
+    
+    tone_guide = {
+        "minimal": "Use few words, be direct and impactful",
+        "balanced": "Professional yet approachable tone",
+        "expressive": "Creative and emotionally engaging",
+        "bold": "Strong statements and confident messaging"
+    }
     
     for persona in personas:
         prompt = f"""Create marketing copy for {product_input.product_name} targeting {persona.name}.
 
 Product: {product_input.product_description}
-Customer: {persona.description}
-Tone: {product_input.campaign_tone}
+Customer Profile: {persona.description}
+Their interests include: {', '.join(persona.cultural_interests.get('music', [])[:2])} music, {', '.join(persona.cultural_interests.get('fashion', [])[:2])} fashion
+Tone: {product_input.campaign_tone} - {tone_guide.get(product_input.campaign_tone, 'balanced')}
 
-Generate JSON:
+Generate a JSON object with exactly these fields:
 {{
-  "tagline": "Max 8 words",
-  "social_caption": "2-3 sentences with emojis",
-  "ad_copy": "3-4 compelling sentences",
-  "email_subject": "Under 50 characters",
-  "product_description": "2-3 benefit-focused sentences"
+  "tagline": "Maximum 8 words, memorable and impactful",
+  "social_caption": "2-3 sentences for Instagram/TikTok with relevant emojis that speak to their interests",
+  "ad_copy": "3-4 compelling sentences for display advertising",
+  "email_subject": "Under 50 characters, creates curiosity",
+  "product_description": "2-3 benefit-focused sentences tailored to this persona"
 }}
 
-Return only JSON."""
+Important: Return ONLY the JSON object, no other text or markdown."""
 
         try:
-            response = await call_huggingface_api(prompt, temperature=0.8)
+            response = await call_openai_api(prompt, temperature=0.8)
             copy_data = extract_json_from_response(response)
             
             if copy_data and "tagline" in copy_data:
@@ -526,8 +447,9 @@ Return only JSON."""
                     email_subject=copy_data.get('email_subject', 'Something special awaits'),
                     product_description=copy_data.get('product_description', product_input.product_description)
                 ))
+                logger.info(f"Successfully generated copy for: {persona.name}")
             else:
-                raise ValueError("Invalid copy data")
+                raise ValueError("Invalid copy data from OpenAI")
                 
         except Exception as e:
             logger.error(f"Copy generation error: {e}")
@@ -547,7 +469,7 @@ def create_fallback_copy(product_input: ProductInput, persona: TastePersona) -> 
     )
 
 async def generate_suggestions(product_input: ProductInput, personas: List[TastePersona]) -> Dict[str, List[str]]:
-    """Generate marketing suggestions"""
+    """Generate marketing suggestions based on personas and their interests"""
     all_interests = {}
     for persona in personas:
         for category, interests in persona.cultural_interests.items():
@@ -558,6 +480,7 @@ async def generate_suggestions(product_input: ProductInput, personas: List[Taste
     # Get top interests
     top_music = list(all_interests.get('music', []))[:2]
     top_fashion = list(all_interests.get('fashion', []))[:2]
+    top_dining = list(all_interests.get('dining', []))[:2]
     
     suggestions = {
         "content_themes": [
@@ -569,20 +492,20 @@ async def generate_suggestions(product_input: ProductInput, personas: List[Taste
         "partnership_ideas": [
             f"Collaborate with {top_music[0] if top_music else 'indie'} music artists",
             f"Partner with {top_fashion[0] if top_fashion else 'sustainable'} fashion brands",
-            "Sponsor cultural events and pop-ups",
-            "Co-create with local artisans"
+            f"Pop-ups at {top_dining[0] if top_dining else 'local'} venues",
+            "Co-create with cultural tastemakers"
         ],
         "campaign_angles": [
-            f"The {product_input.brand_values[0] if product_input.brand_values else 'future'} is now",
-            "Join the conscious revolution",
+            f"The {product_input.brand_values[0] if product_input.brand_values else 'future'} starts here",
+            "Join the movement",
             "Elevate your everyday",
-            "Where purpose meets passion"
+            "Where values meet style"
         ],
         "visual_directions": [
             "Minimalist product photography",
             "Lifestyle shots in natural settings",
-            "User-generated content focus",
-            "Bold typography with clean aesthetics"
+            "User-generated content campaigns",
+            "Bold typography with clean layouts"
         ]
     }
     
@@ -594,40 +517,41 @@ async def health_check():
     """Health check endpoint"""
     # Test connections
     qloo_connected = bool(QLOO_API_KEY)
-    hf_connected = bool(HUGGINGFACE_API_KEY)
+    openai_connected = bool(OPENAI_API_KEY)
     
     return HealthResponse(
         status="healthy",
         timestamp=datetime.utcnow().isoformat(),
-        version="2.0.0",
+        version="3.0.0",
         qloo_connected=qloo_connected,
-        huggingface_connected=hf_connected
+        openai_connected=openai_connected
     )
 
 @app.post("/api/generate-targeting", response_model=TasteTargetResponse)
 async def generate_targeting(product_input: ProductInput):
-    """Generate taste-based targeting using Qloo + HuggingFace"""
+    """Generate taste-based targeting using Qloo + OpenAI"""
     try:
         logger.info(f"Generating targeting for: {product_input.product_name}")
         logger.info(f"Using Qloo API: {bool(QLOO_API_KEY)}")
+        logger.info(f"Using OpenAI API: {bool(OPENAI_API_KEY)}")
         
         # Step 1: Get taste clusters from Qloo API
         taste_clusters = await call_qloo_api(product_input.dict())
         logger.info(f"Retrieved {len(taste_clusters)} taste clusters")
         
-        # Step 2: Generate personas using HuggingFace
-        personas = await generate_personas_with_hf(product_input, taste_clusters)
+        # Step 2: Generate personas using OpenAI
+        personas = await generate_personas_with_openai(product_input, taste_clusters)
         logger.info(f"Generated {len(personas)} personas")
         
         # Step 3: Generate campaign copy
-        campaign_copies = await generate_campaign_copy_with_hf(product_input, personas)
+        campaign_copies = await generate_campaign_copy_with_openai(product_input, personas)
         logger.info(f"Generated {len(campaign_copies)} copy variations")
         
         # Step 4: Generate suggestions
         suggestions = await generate_suggestions(product_input, personas)
         
         # Determine data source
-        data_source = "Qloo Taste AI + HuggingFace" if QLOO_API_KEY else "HuggingFace (Mock Qloo Data)"
+        data_source = "Qloo Taste AI + OpenAI GPT-4" if QLOO_API_KEY else "OpenAI GPT-4 (Mock Qloo Data)"
         
         response = TasteTargetResponse(
             product_name=product_input.product_name,
@@ -645,64 +569,54 @@ async def generate_targeting(product_input: ProductInput):
         logger.error(f"Error in generate_targeting: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/test-qloo")
-async def test_qloo_connection():
-    """Test Qloo API connection with a simple query"""
-    if not QLOO_API_KEY:
-        return {"error": "QLOO_API_KEY not configured"}
-    
-    headers = {
-        "X-Api-Key": QLOO_API_KEY
-    }
-    
+@app.get("/api/test-openai")
+async def test_openai_connection():
+    """Test OpenAI API connection"""
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            # Test with the example URL format
-            url = f"{QLOO_API_URL}/v2/insights?filter.type=urn:demographics&signal.interests.tags=urn:tag:genre:lifestyle:general"
-            response = await client.get(url, headers=headers)
-            
-            return {
-                "status": "success" if response.status_code == 200 else "error",
-                "status_code": response.status_code,
-                "response": response.json() if response.status_code == 200 else response.text
-            }
+        response = await call_openai_api("Hello! Please respond with: 'OpenAI connection successful!'")
+        return {
+            "status": "success",
+            "response": response,
+            "model": "gpt-4o-mini"
+        }
     except Exception as e:
-        return {"error": str(e)}
+        return {
+            "status": "error",
+            "error": str(e)
+        }
 
 @app.get("/api/test-connections")
 async def test_connections():
-    """Test API connections"""
+    """Test all API connections"""
     results = {
         "qloo": {"configured": bool(QLOO_API_KEY), "status": "unknown"},
-        "huggingface": {"configured": bool(HUGGINGFACE_API_KEY), "status": "unknown"}
+        "openai": {"configured": bool(OPENAI_API_KEY), "status": "unknown"}
     }
     
     # Test Qloo
     if QLOO_API_KEY:
         try:
-            result = await test_qloo_connection()
-            results["qloo"]["status"] = "connected" if result.get("status") == "success" else "error"
-            results["qloo"]["details"] = result
+            headers = {"X-Api-Key": QLOO_API_KEY}
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                url = f"{QLOO_API_URL}/v2/insights?filter.type=urn:demographics&signal.interests.tags=urn:tag:genre:lifestyle:general"
+                response = await client.get(url, headers=headers)
+                results["qloo"]["status"] = "connected" if response.status_code == 200 else "error"
         except:
             results["qloo"]["status"] = "error"
     
-    # Test HuggingFace
-    if HUGGINGFACE_API_KEY:
+    # Test OpenAI
+    if OPENAI_API_KEY:
         try:
-            response = await call_huggingface_api(
-                "Test connection",
-                model=FALLBACK_MODEL,
-                max_tokens=10
-            )
-            results["huggingface"]["status"] = "connected" if response else "error"
+            test_result = await test_openai_connection()
+            results["openai"]["status"] = "connected" if test_result["status"] == "success" else "error"
         except:
-            results["huggingface"]["status"] = "error"
+            results["openai"]["status"] = "error"
     
     return results
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting TasteTarget API with Qloo + HuggingFace...")
+    logger.info("Starting TasteTarget API with Qloo + OpenAI...")
     logger.info(f"Qloo API: {'Connected' if QLOO_API_KEY else 'Not configured'}")
-    logger.info(f"HuggingFace API: {'Connected' if HUGGINGFACE_API_KEY else 'Not configured'}")
+    logger.info(f"OpenAI API: {'Connected' if OPENAI_API_KEY else 'Not configured'}")
     uvicorn.run(app, host="0.0.0.0", port=8000)
