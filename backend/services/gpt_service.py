@@ -1,1 +1,0 @@
-# Handles communication with OpenAI GPT-4 (or Claude). Formats prompts and processes responses.
