@@ -2,6 +2,61 @@
 
 TasteTarget is a B2B SaaS platform that helps brands and creators identify and target audiences using cultural intelligence instead of demographics. It generates taste-based customer personas and personalized marketing campaigns in seconds.
 
+---
+## 🚀 Getting Started
+
+Follow these steps to set up and run the project after cloning from Git.
+
+### 📦 1. Clone the Repository
+
+```bash
+git clone https://github.com/your-username/tastetarget.git
+cd tastetarget
+```
+
+🧪 2. Set Up a Virtual Environment (optional but recommended)
+Windows
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+📥 3. Install Dependencies
+If using a monorepo with separate folders:
+
+```bash
+pip install -r requirements.txt
+```
+
+🔐 4. Set Up Environment Variables
+Create a .env file in the root:
+```
+OPENAI_API_KEY=your_openai_api_key
+QLOO_API_KEY=your_qloo_api_key
+```
+⚠️ Never commit your API keys to Git.
+
+\
+🎨 5. Run the Streamlit Frontend
+In a new terminal, navigate to the frontend directory:
+
+bash
+```
+cd frontend
+venv\Scripts\activate 
+streamlit run app.py
+Streamlit will run at: http://localhost:8501
+```
+
+
+🧠 6. Run the FastAPI Backend
+```bash
+venv\Scripts\activate 
+$env:PYTHONPATH="."
+streamlit run backend/main.py 
+```
+---
+
 ## 🚀 Features
 
 - **Taste-Based Personas**: Generate detailed customer personas based on cultural interests and behaviors
@@ -21,7 +76,7 @@ TasteTarget is a B2B SaaS platform that helps brands and creators identify and t
 
 ## 📋 Prerequisites
 
-- Python 3.8+
+- Python 3.11
 - OpenAI API key
 - (Optional) Qloo API key for production use
 
@@ -39,7 +94,7 @@ cd tastetarget
 ```bash
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+venv\Scripts\activate
 
 # Install backend dependencies
 pip install -r requirements.txt
@@ -49,17 +104,6 @@ cp .env.example .env
 
 # Edit .env and add your OpenAI API key
 # OPENAI_API_KEY=your_api_key_here
-```
-
-### 3. Set up the Frontend
-
-```bash
-# Install frontend dependencies
-pip install -r requirements-frontend.txt
-
-# Create Streamlit secrets directory
-mkdir -p .streamlit
-cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 ```
 
 ## 🚀 Running the Application
