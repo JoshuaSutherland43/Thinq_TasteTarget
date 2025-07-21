@@ -7,6 +7,10 @@ from layouts.export_layout import ExportPage
 from layouts.settings_layout import SettingsPage
 from layouts.fallback_layout import FallbackPage
 from layouts.dashboard_layout import DashboardPage
+from layouts.library_layout import LibraryPage
+from layouts.insights_layout import InsightsPage
+
+
 
 class PageController:
     @staticmethod
@@ -20,18 +24,35 @@ class PageController:
 
         if page == "generate":
             GeneratePage.render()
+        
         elif page == "dashboard":
             DashboardPage.render()
+            
+        elif page == "insights":
+            if data:
+                InsightsPage.render(data)
+            else:
+                st.markdown("## AUDIENCE INSIGHTS")
+                st.info("No insights available. Generate a new campaign to see AI-powered audience intelligence.")
+                if st.button("GO TO CAMPAIGN GENERATOR", type="primary"):
+                    st.session_state.current_page = 'generate'
+                    st.rerun()
+             
         elif page == "analyze":
             if data:
                 AnalyzePage.render(data)
             else:
                 st.warning("No generated data available. Please generate first.")
+        
+        elif page == "library":
+            LibraryPage.render()
+        
         elif page == "export":
             if data:
                 ExportPage.render(data)
             else:
                 st.warning("No generated data available. Please generate first.")
+        
         elif page == "settings":
             SettingsPage.render()
         else:

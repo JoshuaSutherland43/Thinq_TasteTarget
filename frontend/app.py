@@ -40,3 +40,16 @@ render_navigation()
 # Main Content - Use the PageController from layouts
 LayoutPageController.render()
 
+# Professional Footer
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; padding: 2rem 0; color: #666666;'>
+    <p style='margin: 0;'>
+        <strong>TASTETARGET</strong> - AI-Powered Audience Intelligence Platform<br>
+        <span style='font-size: 0.875rem;'>
+            Enterprise Marketing Solution | SOC 2 Compliant | GDPR Ready<br>
+            © 2024 TasteTarget Inc. All rights reserved.
+        </span>
+    </p>
+</div>
+""", unsafe_allow_html=True)
