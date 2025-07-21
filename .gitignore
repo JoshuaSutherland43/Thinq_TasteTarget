@@ -1,20 +1,17 @@
-# Ignore environment config
+# Environment config
 .env
+.venv/
+venv/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual environment
-venv/
-.env/
-.venv/
-
 # IDE config
 .vscode/
 .idea/
 
-# OS files
+# OS-specific files
 .DS_Store
 Thumbs.db
