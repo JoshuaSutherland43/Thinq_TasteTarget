@@ -17,9 +17,9 @@ st.set_page_config(
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from backend.core.state_management.app_state import get_session_state, AppState
-from frontend.components.navigation import render_navigation
-from frontend.themes.style_manager import get_stylesheet
-from frontend.layouts.page_router import PageController as LayoutPageController
+from components.navigation import render_navigation
+from themes.style_manager import get_stylesheet
+from layouts.page_router import PageController as LayoutPageController
 
 
 # Apply Stylesheet

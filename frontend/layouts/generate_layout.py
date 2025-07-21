@@ -1,6 +1,6 @@
 import streamlit as st
-from frontend.builders.form_builder import FormBuilder
-from frontend.components.buttons import generate_btn
+from builders.form_builder import FormBuilder
+from components.buttons import generate_btn
 
 API_URL = st.secrets["API_URL"] 
 

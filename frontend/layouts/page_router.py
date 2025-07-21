@@ -1,12 +1,12 @@
 # frontend/layouts/page_router.py
 import streamlit as st
 
-from frontend.layouts.generate_layout import GeneratePage
-from frontend.layouts.analyze_layout import AnalyzePage
-from frontend.layouts.export_layout import ExportPage
-from frontend.layouts.settings_layout import SettingsPage
-from frontend.layouts.fallback_layout import FallbackPage
-from frontend.layouts.dashboard_layout import DashboardPage
+from layouts.generate_layout import GeneratePage
+from layouts.analyze_layout import AnalyzePage
+from layouts.export_layout import ExportPage
+from layouts.settings_layout import SettingsPage
+from layouts.fallback_layout import FallbackPage
+from layouts.dashboard_layout import DashboardPage
 
 class PageController:
     @staticmethod
