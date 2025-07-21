@@ -65,6 +65,7 @@ class TastePersona(BaseModel):
     psychographics: List[str]
     preferred_channels: List[str]
     influencer_types: List[str]
+    specific_influencers: Optional[Dict[str, List[str]]] = Field(default_factory=dict)
 
 class CampaignCopy(BaseModel):
     persona_id: str
@@ -356,8 +357,18 @@ Generate a JSON object with exactly these fields:
   "description": "2-3 sentence description of who they are and what drives them",
   "psychographics": ["trait1", "trait2", "trait3", "trait4", "trait5"],
   "preferred_channels": ["channel1", "channel2", "channel3", "channel4"],
-  "influencer_types": ["type1", "type2", "type3"]
+  "influencer_types": ["type1", "type2", "type3"],
+  "specific_influencers": {{
+    "musicians": ["Real artist name 1", "Real artist name 2", "Real artist name 3"],
+    "lifestyle_bloggers": ["Real blogger/creator name 1", "Real blogger name 2", "Real blogger name 3"],
+    "thought_leaders": ["Real thought leader 1", "Real thought leader 2", "Real thought leader 3"]
+  }}
 }}
+
+Based on the cultural interests, suggest REAL, CURRENT influencers who are active in 2024/2025. 
+For musicians, include artists from the music genres mentioned in the interests.
+For lifestyle bloggers, include real Instagram/TikTok/YouTube creators who align with these interests.
+For thought leaders, include real industry experts, authors, or speakers relevant to the brand values.
 
 Important: Return ONLY the JSON object, no other text or markdown."""
 
@@ -366,6 +377,9 @@ Important: Return ONLY the JSON object, no other text or markdown."""
             persona_data = extract_json_from_response(response)
             
             if persona_data and "persona_name" in persona_data:
+                # Extract specific influencers if provided, otherwise use empty dict
+                specific_influencers = persona_data.get('specific_influencers', {})
+                
                 personas.append(TastePersona(
                     persona_id=cluster['cluster_id'],
                     name=persona_data.get('persona_name', f'Persona {i+1}'),
@@ -373,7 +387,8 @@ Important: Return ONLY the JSON object, no other text or markdown."""
                     cultural_interests=cluster['interests'],
                     psychographics=persona_data.get('psychographics', ['innovative', 'conscious', 'modern']),
                     preferred_channels=persona_data.get('preferred_channels', ['Instagram', 'Email', 'YouTube']),
-                    influencer_types=persona_data.get('influencer_types', ['Micro-influencers', 'Experts'])
+                    influencer_types=persona_data.get('influencer_types', ['Micro-influencers', 'Experts']),
+                    specific_influencers=specific_influencers
                 ))
                 logger.info(f"Successfully generated persona: {persona_data.get('persona_name')}")
             else:
@@ -401,7 +416,8 @@ def create_fallback_persona(cluster: dict, index: int) -> TastePersona:
         cultural_interests=cluster['interests'],
         psychographics=["thoughtful", "quality-focused", "authentic", "curious", "trendsetting"],
         preferred_channels=["Instagram", "Newsletter", "YouTube", "LinkedIn"],
-        influencer_types=["Industry experts", "Lifestyle creators", "Thought leaders"]
+        influencer_types=["Industry experts", "Lifestyle creators", "Thought leaders"],
+        specific_influencers={}
     )
 
 async def generate_campaign_copy_with_openai(product_input: ProductInput, personas: List[TastePersona]) -> List[CampaignCopy]:
