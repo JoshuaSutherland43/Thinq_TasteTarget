@@ -804,9 +804,10 @@ elif st.session_state.current_page == 'insights' and st.session_state.generated_
         st.metric("Time Saved", "2 weeks", "vs manual research")
     
     # Tabbed Interface
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "AUDIENCE PERSONAS", 
         "MESSAGING", 
+        "VISUALS",
         "ANALYTICS", 
         "RECOMMENDATIONS",
         "EXPORT"
@@ -1203,6 +1204,175 @@ elif st.session_state.current_page == 'insights' and st.session_state.generated_
                     st.markdown("</div>", unsafe_allow_html=True)
     
     with tab3:
+        st.markdown("### AI-GENERATED MARKETING VISUALS")
+        st.info("Generate custom marketing visuals tailored to each persona using AI. These visuals are optimized for your target audience's preferences.")
+        
+        # Visual style mapping based on persona characteristics
+        style_mapping = {
+            "eco_conscious": "natural organic",
+            "tech_innovator": "tech futuristic",
+            "premium_lifestyle": "luxury premium",
+            "balanced_modern": "minimalist clean"
+        }
+        
+        for i, persona in enumerate(data['personas']):
+            with st.expander(f"{persona['name'].upper()} - VISUAL GENERATION", expanded=(i==0)):
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
+                    st.markdown("**VISUAL PARAMETERS**")
+                    
+                    # Auto-fill based on persona
+                    persona_name = persona['name']
+                    brand_values_str = ', '.join(data.get('brand_values', ['quality', 'innovation'])[:3])
+                    product_desc = data.get('product_name', 'Product')
+                    
+                    # Determine style based on persona
+                    default_style = style_mapping.get(persona.get('persona_id', ''), 'minimalist clean')
+                    
+                    # Style selector
+                    style_preference = st.selectbox(
+                        "Visual Style",
+                        ["minimalist clean", "bold vibrant", "luxury premium", 
+                         "natural organic", "tech futuristic", "artistic creative"],
+                        index=["minimalist clean", "bold vibrant", "luxury premium", 
+                               "natural organic", "tech futuristic", "artistic creative"].index(default_style),
+                        key=f"visual_style_{persona.get('persona_id', i)}_{i}"
+                    )
+                    
+                    # Additional customization
+                    custom_elements = st.text_input(
+                        "Additional Elements",
+                        placeholder="e.g., urban background, nature elements",
+                        key=f"visual_elements_{persona.get('persona_id', i)}_{i}"
+                    )
+                    
+                    if st.button(f"GENERATE VISUAL", key=f"gen_visual_{persona.get('persona_id', i)}_{i}"):
+                        with st.spinner("Generating visual..."):
+                            try:
+                                # Call the backend API
+                                visual_request = {
+                                    "persona_name": persona_name,
+                                    "brand_values": brand_values_str,
+                                    "product_description": f"{product_desc} {custom_elements}".strip(),
+                                    "style_preference": style_preference
+                                }
+                                
+                                response = requests.post(
+                                    f"{API_URL}/api/generate-visual",
+                                    json=visual_request,
+                                    timeout=60
+                                )
+                                
+                                if response.status_code == 200:
+                                    result = response.json()
+                                    if result['status'] == 'success' and result.get('image_data'):
+                                        # Store in session state
+                                        if 'generated_visuals' not in st.session_state:
+                                            st.session_state.generated_visuals = {}
+                                        st.session_state.generated_visuals[persona['persona_id']] = result['image_data']
+                                        st.success("Visual generated successfully!")
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to generate visual. Please try again.")
+                                else:
+                                    st.error(f"Error: {response.status_code}")
+                                    
+                            except Exception as e:
+                                st.error(f"Generation failed: {str(e)}")
+                                st.info("Note: Visual generation requires the backend API to be running.")
+                
+                with col2:
+                    st.markdown("**GENERATED VISUAL**")
+                    
+                    # Display generated visual if available
+                    if hasattr(st.session_state, 'generated_visuals') and persona['persona_id'] in st.session_state.generated_visuals:
+                        image_data = st.session_state.generated_visuals[persona['persona_id']]
+                        if image_data:
+                            # Display the image
+                            if image_data.startswith('data:image'):
+                                # It's already a data URL
+                                st.markdown(f'<img src="{image_data}" style="width: 100%; border: 2px solid #000;">', unsafe_allow_html=True)
+                            else:
+                                # It's base64 encoded
+                                st.image(f"data:image/png;base64,{image_data}", use_column_width=True)
+                            
+                            # Download button
+                            st.download_button(
+                                label="DOWNLOAD IMAGE",
+                                data=base64.b64decode(image_data.split(',')[1] if ',' in image_data else image_data),
+                                file_name=f"{persona_name.replace(' ', '_')}_visual.png",
+                                mime="image/png",
+                                key=f"download_visual_{persona.get('persona_id', i)}_{i}"
+                            )
+                    else:
+                        st.markdown("""
+                        <div style="border: 2px dashed #CCCCCC; padding: 3rem; text-align: center; color: #666666;">
+                            <p style="margin: 0;">No visual generated yet</p>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem;">Click 'Generate Visual' to create one</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Visual usage guidelines
+                    st.markdown("**USAGE GUIDELINES**")
+                    st.markdown(f"""
+                    • Use for {persona['preferred_channels'][0] if persona['preferred_channels'] else 'social media'} campaigns
+                    • Adapt style for different platforms
+                    • A/B test with your audience
+                    • Maintain brand consistency
+                    """)
+        
+        # Bulk generation option
+        st.markdown("---")
+        st.markdown("### BULK VISUAL GENERATION")
+        
+        col1, col2, col3 = st.columns(3)
+        with col2:
+            if st.button("GENERATE ALL VISUALS", use_container_width=True, key="bulk_generate_visuals"):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                for i, persona in enumerate(data['personas']):
+                    status_text.text(f"Generating visual for {persona['name']}...")
+                    progress_bar.progress((i + 1) / len(data['personas']))
+                    
+                    # Skip if already generated
+                    if hasattr(st.session_state, 'generated_visuals') and persona['persona_id'] in st.session_state.generated_visuals:
+                        continue
+                    
+                    try:
+                        visual_request = {
+                            "persona_name": persona['name'],
+                            "brand_values": ', '.join(data.get('brand_values', ['quality'])[:3]),
+                            "product_description": data.get('product_name', 'Product'),
+                            "style_preference": style_mapping.get(persona.get('persona_id', ''), 'minimalist clean')
+                        }
+                        
+                        response = requests.post(
+                            f"{API_URL}/api/generate-visual",
+                            json=visual_request,
+                            timeout=60
+                        )
+                        
+                        if response.status_code == 200:
+                            result = response.json()
+                            if result['status'] == 'success' and result.get('image_data'):
+                                if 'generated_visuals' not in st.session_state:
+                                    st.session_state.generated_visuals = {}
+                                st.session_state.generated_visuals[persona['persona_id']] = result['image_data']
+                        
+                        time.sleep(1)  # Rate limiting
+                        
+                    except Exception as e:
+                        logger.error(f"Bulk generation error for {persona['name']}: {e}")
+                
+                status_text.text("Visual generation complete!")
+                progress_bar.progress(1.0)
+                time.sleep(1)
+                st.rerun()
+    
+    with tab4:
+        st.markdown("### ANALYTICS & INSIGHTS")
         st.markdown("### ANALYTICS & INSIGHTS")
         
         # Check if we have data to analyze
@@ -1485,7 +1655,7 @@ elif st.session_state.current_page == 'insights' and st.session_state.generated_
         else:
             st.warning("No data available for analytics. Please generate targeting insights first.")
     
-    with tab4:
+    with tab5:
         st.markdown("### STRATEGIC RECOMMENDATIONS")
         
         suggestions = data['suggestions']
@@ -1536,7 +1706,7 @@ elif st.session_state.current_page == 'insights' and st.session_state.generated_
         roadmap_df = pd.DataFrame(roadmap_data)
         st.dataframe(roadmap_df, use_container_width=True, hide_index=True)
     
-    with tab5:
+    with tab6:
         st.markdown("### EXPORT & SHARE")
         
         col1, col2, col3 = st.columns(3)
