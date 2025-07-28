@@ -8,6 +8,13 @@ class ProductInput(BaseModel):
     target_mood: List[str] = []
     campaign_tone: str = "balanced"
 
+class VisualGenerationRequest(BaseModel):
+    persona_name: str
+    brand_values: str 
+    product_description: str
+    style_preference: str = "minimalist clean"
+    image_type: str = "marketing"
+
 class TastePersona(BaseModel):
     persona_id: str
     name: str
@@ -32,6 +39,8 @@ class TasteTargetResponse(BaseModel):
     generation_timestamp: str
     suggestions: Dict[str, List[str]]
     data_source: str = Field(default="Qloo Taste AI + OpenAI GPT-4")
+    visual_generation_endpoint: str = "https://huggingface.co/spaces/Samkelo28/taste-target-visual-generator"
+
 
 class HealthResponse(BaseModel):
     status: str
