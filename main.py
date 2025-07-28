@@ -690,6 +690,7 @@ async def test_connections():
 @app.post("/api/generate-visual")
 async def generate_visual(request: VisualGenerationRequest):
     """Generate marketing visual using Hugging Face Space"""
+    # [Your existing code remains exactly the same]
     try:
         logger.info(f"Generating visual for persona: {request.persona_name}")
         
@@ -738,6 +739,7 @@ async def generate_visual(request: VisualGenerationRequest):
             logger.warning(f"Hugging Face Space error: {str(hf_error)}")
             logger.info("Falling back to local generation")
             
+            # [Rest of your existing fallback code remains the same]
             # Fallback: Generate a stylized placeholder image locally
             from PIL import Image, ImageDraw, ImageFont
             import io
@@ -973,6 +975,114 @@ async def generate_visual(request: VisualGenerationRequest):
             "status": "error",
             "message": f"Failed to generate visual: {str(e)}"
         }
+
+
+# ADD THIS NEW ENDPOINT AFTER THE EXISTING generate_visual ENDPOINT
+@app.post("/api/generate-cultural-visual")
+async def generate_cultural_visual(request: dict):
+    """Generate visuals that incorporate cultural insights from Qloo data"""
+    try:
+        persona_data = request.get("persona_data", {})
+        product_info = request.get("product_info", {})
+        visual_type = request.get("visual_type", "poster")
+        style_preference = request.get("style_preference", "minimalist clean")
+        custom_elements = request.get("custom_elements", "")
+        
+        # Extract cultural interests
+        cultural_interests = persona_data.get("cultural_interests", {})
+        psychographics = persona_data.get("psychographics", [])
+        persona_name = persona_data.get("name", "Target Customer")
+        
+        # Build a culturally-informed description
+        cultural_description = f"{product_info.get('name', 'product')}"
+        
+        # Add cultural elements to the description for better AI generation
+        cultural_context = []
+        
+        if custom_elements:
+            cultural_description += f" - {custom_elements}"
+        else:
+            # Add cultural context based on interests
+            if cultural_interests.get("music"):
+                music_styles = ', '.join(cultural_interests['music'][:2])
+                cultural_context.append(f"inspired by {music_styles} vibes")
+                
+            if cultural_interests.get("fashion"):
+                fashion_style = cultural_interests['fashion'][0] if cultural_interests['fashion'] else ""
+                if fashion_style:
+                    cultural_context.append(f"{fashion_style} aesthetic")
+                    
+            if cultural_interests.get("dining"):
+                dining_pref = cultural_interests['dining'][0] if cultural_interests['dining'] else ""
+                if dining_pref:
+                    cultural_context.append(f"appeals to {dining_pref} enthusiasts")
+                    
+            if psychographics:
+                cultural_context.append(f"designed for {psychographics[0]} mindset")
+        
+        # Combine cultural context into description
+        if cultural_context:
+            cultural_description += " - " + ", ".join(cultural_context)
+        
+        logger.info(f"Generating culturally-informed visual for persona: {persona_name}")
+        logger.info(f"Cultural elements being incorporated: {cultural_interests}")
+        logger.info(f"Enhanced description: {cultural_description}")
+        
+        # Determine image type
+        image_type = "logo" if visual_type == "logo" and not custom_elements else "marketing"
+        
+        # Create a visual request with cultural enhancements
+        visual_request = VisualGenerationRequest(
+            persona_name=persona_name,
+            brand_values=product_info.get('brand_values', 'quality, innovation'),
+            product_description=cultural_description,
+            style_preference=style_preference,
+            image_type=image_type
+        )
+        
+        # Use the existing generate_visual function with enhanced description
+        result = await generate_visual(visual_request)
+        
+        # Add cultural metadata to the result
+        if result.get("status") == "success":
+            result["cultural_elements"] = cultural_interests
+            result["psychographics"] = psychographics
+            result["generation_type"] = "cultural_enhanced"
+            result["prompt_summary"] = f"Created for {persona_name} with {len(psychographics)} key traits and {len(cultural_context)} cultural elements"
+            
+            # Log successful cultural generation
+            logger.info(f"Successfully generated cultural visual for {persona_name} with {len(cultural_context)} cultural elements")
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Cultural visual generation error: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
+        # Fallback to standard generation if cultural generation fails
+        try:
+            logger.info("Attempting fallback to standard visual generation")
+            
+            # Create a basic visual request
+            basic_request = VisualGenerationRequest(
+                persona_name=request.get("persona_data", {}).get("name", "Customer"),
+                brand_values=request.get("product_info", {}).get("brand_values", "quality"),
+                product_description=request.get("product_info", {}).get("name", "Product"),
+                style_preference=request.get("style_preference", "minimalist clean"),
+                image_type="logo" if request.get("visual_type") == "logo" else "marketing"
+            )
+            
+            result = await generate_visual(basic_request)
+            result["generation_type"] = "fallback"
+            return result
+            
+        except Exception as fallback_error:
+            logger.error(f"Fallback generation also failed: {str(fallback_error)}")
+            return {
+                "status": "error",
+                "message": f"Failed to generate visual: {str(e)}"
+            }
 
 if __name__ == "__main__":
     import uvicorn

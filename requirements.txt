@@ -34,6 +34,7 @@ transformers==4.33.0
 accelerate==0.22.0
 safetensors==0.3.3
 Pillow==10.0.0
+gradio_client
 
 # UI
 gradio==4.16.0
