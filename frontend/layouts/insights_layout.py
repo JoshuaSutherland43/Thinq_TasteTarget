@@ -9,7 +9,6 @@ from backend.services.report_generator import ReportGenerator
 
 class InsightsPage:
     @staticmethod
-     @staticmethod
     def render(data):
         st.markdown(
             f"## AUDIENCE INSIGHTS: {data.get('product_name', 'Unknown Product').upper()}"
