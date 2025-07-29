@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Dict, List
-from backend.services.report_generator import ReportGenerator
 
 import json
 

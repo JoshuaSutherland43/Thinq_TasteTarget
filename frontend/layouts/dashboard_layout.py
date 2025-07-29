@@ -6,15 +6,17 @@ from components.sidebar import Sidebar
 
 API_URL = st.secrets["API_URL"]
 
+
 class DashboardPage:
     @staticmethod
     def render():
         st.title(" TasteTarget Dashboard")
         st.markdown("## MARKETING INTELLIGENCE DASHBOARD")
-        
+
         # Value Proposition Section
         with st.container():
-            st.markdown("""
+            st.markdown(
+                """
             <div class="value-prop">
                 <h3>Why TasteTarget is Different</h3>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem;">
@@ -44,81 +46,102 @@ class DashboardPage:
                     WHAT to say, and WHERE to find them with actionable, implementation-ready strategies.
                 </p>
             </div>
-            """, unsafe_allow_html=True)
-    
+            """,
+                unsafe_allow_html=True,
+            )
+
         st.markdown("---")
         # Welcome Message
-        st.info("Welcome back. Your AI-powered marketing intelligence platform is ready to transform your campaigns.")
-        
+        st.info(
+            "Welcome back. Your AI-powered marketing intelligence platform is ready to transform your campaigns."
+        )
+
         # Key Metrics
         col1, col2, col3, col4 = st.columns(4)
-        
+
         with col1:
-            st.markdown("""
+            st.markdown(
+                """
             <div class="metric-card">
                 <div class="value">89%</div>
                 <div class="label">Campaign Success Rate</div>
                 <div class="change">↑ 12% vs traditional methods</div>
             </div>
-            """, unsafe_allow_html=True)
-        
+            """,
+                unsafe_allow_html=True,
+            )
+
         with col2:
-            st.markdown("""
+            st.markdown(
+                """
             <div class="metric-card">
                 <div class="value">60sec</div>
                 <div class="label">Time to Insights</div>
                 <div class="change">↑ 99% faster</div>
             </div>
-            """, unsafe_allow_html=True)
-        
+            """,
+                unsafe_allow_html=True,
+            )
+
         with col3:
-            st.markdown("""
+            st.markdown(
+                """
             <div class="metric-card">
                 <div class="value">3.2x</div>
                 <div class="label">ROI Improvement</div>
                 <div class="change">↑ vs generic targeting</div>
             </div>
-            """, unsafe_allow_html=True)
-        
+            """,
+                unsafe_allow_html=True,
+            )
+
         with col4:
-            st.markdown("""
+            st.markdown(
+                """
             <div class="metric-card">
                 <div class="value">15+</div>
                 <div class="label">Data Points Per Persona</div>
                 <div class="change">↑ Actionable insights</div>
             </div>
-            """, unsafe_allow_html=True)
-        
+            """,
+                unsafe_allow_html=True,
+            )
+
         st.markdown("---")
-        
-        
-         # Recent Campaigns
+
+        # Recent Campaigns
         col1, col2 = st.columns([2, 1])
-        
+
         with col1:
             st.markdown("### RECENT CAMPAIGNS")
-            campaigns_df = pd.DataFrame({
-                'Campaign': ['Summer Collection 2024', 'Eco-Friendly Launch', 'Holiday Special'],
-                'Date': ['2024-06-15', '2024-06-10', '2024-06-05'],
-                'Segments': [3, 4, 3],
-                'Performance': ['92%', '87%', '95%'],
-                'Status': ['Active', 'Active', 'Completed']
-            })
+            campaigns_df = pd.DataFrame(
+                {
+                    "Campaign": [
+                        "Summer Collection 2024",
+                        "Eco-Friendly Launch",
+                        "Holiday Special",
+                    ],
+                    "Date": ["2024-06-15", "2024-06-10", "2024-06-05"],
+                    "Segments": [3, 4, 3],
+                    "Performance": ["92%", "87%", "95%"],
+                    "Status": ["Active", "Active", "Completed"],
+                }
+            )
             st.dataframe(campaigns_df, use_container_width=True, hide_index=True)
-        
+
         with col2:
             st.markdown("### QUICK ACTIONS")
             if st.button("NEW CAMPAIGN", use_container_width=True):
-                st.session_state.current_page = 'generate'
+                st.session_state.current_page = "generate"
                 st.rerun()
-            
+
             st.button("VIEW ANALYTICS", use_container_width=True)
             st.button("EXPORT REPORTS", use_container_width=True)
             st.button("SYNC DATA", use_container_width=True)
 
-        if st.session_state.current_page == 'generate':
+        if st.session_state.current_page == "generate":
             st.markdown("## CAMPAIGN GENERATOR")
-            
+
             # Progress indicator
             progress_cols = st.columns(4)
             with progress_cols[0]:
@@ -129,21 +152,8 @@ class DashboardPage:
                 st.markdown("**3. TARGET AUDIENCE**")
             with progress_cols[3]:
                 st.markdown("**4. GENERATE**")
-        
+
         st.markdown("---")
-        
-        # Render the input form
-        current_form()
-
-        # Extract values from session state
-        product_name = st.session_state.get("product_name_input", "")
-        product_description = st.session_state.get("product_desc_input", "")
-        brand_values = st.session_state.get("brand_values_input", [])
-        target_mood = st.session_state.get("target_mood_input", [])
-        campaign_tone = st.session_state.get("tone_slider", "BALANCED")
-
-        # Render generate button with values
-        generate_btn(product_name, product_description, brand_values, target_mood, campaign_tone, API_URL)
 
         # Optional Sidebar
         # Sidebar.render()

@@ -40,20 +40,8 @@ class PageController:
                     st.session_state.current_page = "generate"
                     st.rerun()
 
-        elif page == "analyze":
-            if data:
-                AnalyzePage.render(data)
-            else:
-                st.warning("No generated data available. Please generate first.")
-
         elif page == "library":
             LibraryPage.render()
-
-        elif page == "export":
-            if data:
-                ExportPage.render(data)
-            else:
-                st.warning("No generated data available. Please generate first.")
 
         elif page == "settings":
             SettingsPage.render()
