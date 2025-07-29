@@ -2,11 +2,12 @@ import streamlit as st
 import plotly.graph_objs as go
 import plotly.express as px
 import pandas as pd
-import datetime
+from datetime import datetime
 import json
 import requests
 import time
 import base64
+
 import logging
 from backend.core.configuration.config import Config  # Or define API_URL somewhere
 from backend.services.report_generator import ReportGenerator  # adjust as needed
@@ -1551,7 +1552,7 @@ class AnalyzePage:
                 st.download_button(
                     label="EXPORT FULL DATA (JSON)",
                     data=json_str,
-                    file_name=f"TasteTarget_Data_{data['product_name'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.json",
+                    file_name=f"TasteTarget_Report_{data['product_name'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.txt",
                     mime="application/json",
                     use_container_width=True,
                 )
