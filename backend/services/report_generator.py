@@ -1,8 +1,15 @@
 from datetime import datetime
 from typing import Dict, List
+from backend.services.report_generator import ReportGenerator
+
 import json
 
+
 class ReportGenerator:
+
+    def __init__(self, data):
+        self.data = data
+
     @staticmethod
     def generate_report(data: Dict) -> str:
         report = f"""TASTETARGET INTELLIGENCE REPORT
@@ -12,8 +19,8 @@ class ReportGenerator:
 
     AUDIENCE SEGMENTS
     {'-' * 50}"""
-        
-        for i, persona in enumerate(data['personas'], 1):
+
+        for i, persona in enumerate(data["personas"], 1):
             report += f"""
 
     {i}. {persona['name'].upper()}
@@ -25,15 +32,21 @@ class ReportGenerator:
     Channels:
     {chr(10).join(f'• {channel}' for channel in persona['preferred_channels'])}
     """
-        
+
         report += f"""
 
     MESSAGING STRATEGY
     {'-' * 50}"""
-        
-        for copy in data['campaign_copies']:
-            persona_name = next((p['name'] for p in data['personas'] 
-                            if p['persona_id'] == copy['persona_id']), "Unknown")
+
+        for copy in data["campaign_copies"]:
+            persona_name = next(
+                (
+                    p["name"]
+                    for p in data["personas"]
+                    if p["persona_id"] == copy["persona_id"]
+                ),
+                "Unknown",
+            )
             report += f"""
 
     {persona_name.upper()}:
@@ -41,11 +54,9 @@ class ReportGenerator:
     Social: {copy['social_caption']}
     Email: {copy['email_subject']}
     """
-        
+
         return report
 
     @staticmethod
     def generate_json(data: dict) -> str:
         return json.dumps(data, indent=2)
-    
-    

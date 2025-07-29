@@ -1,13 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
 from core.configuration.config import settings
-from models.schemas import ProductInput, TasteTargetResponse
+from services.openai_service import call_openai_api, extract_json_from_response
+from models.schemas import ProductInput, TasteTargetResponse, TastePersona, CampaignCopy
 from services.qloo_service import call_qloo_api
-from services.generator import (
-    generate_personas_with_openai,
-    generate_campaign_copy_with_openai,
-    generate_suggestions,
-)
+from typing import List, Dict, Optional, Union, Any
 import logging
 
 router = APIRouter()
