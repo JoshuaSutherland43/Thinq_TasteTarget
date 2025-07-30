@@ -1,52 +1,141 @@
 # External packages
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File, Form
 from PIL import Image
-from httpx import Client  # or use httpx.AsyncClient if needed
+from httpx import Client  # or use httpx.AsyncClient if neede
+from gradio_client import Client
 
 # Built-in modules
 import asyncio
 import os
 import base64
 import logging
+import io
 
 # Local or project imports
 from core.configuration.config import settings
-from models.schemas import VisualGenerationRequest  # adjust if path differs
-
+from models.schemas import VisualGenerationRequest
+from fastapi.responses import JSONResponse
+import shutil
+import uuid
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get("/api/test-visual-generation")
-async def test_visual_generation():
-    """Test visual generation capability"""
+@router.post("/api/transform-poster")
+async def transform_existing_poster(
+    file: UploadFile = File(...),
+    persona_name: str = Form(...),
+    brand_values: str = Form(...),
+    product_description: str = Form(...),
+    style_preference: str = Form(...),
+    campaign_type: str = Form(...),
+    format: str = Form(...),
+    custom_elements: str = Form(""),
+):
     try:
-        # Test if Hugging Face Space is accessible
-        try:
-            client = Client("Samkelo28/taste-target-visual-generator")
-            status = "connected"
-            message = "Hugging Face Space is accessible"
-        except Exception as e:
-            status = "fallback"
-            message = f"Using local generation (HF Space error: {str(e)})"
+        # Read uploaded image
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-        # Test local generation
-        img = Image.new("RGB", (100, 100), color="red")
-        local_status = "available"
+        # Optionally save or preprocess locally
+        buffered = io.BytesIO()
+        image.save(buffered, format="PNG")
+        base64_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+        # Call HF or your image model
+        # You can pass this image and persona details to your Hugging Face pipeline
+        client = Client("Samkelo28/taste-target-visual-generator")
+        result = await asyncio.to_thread(
+            client.predict,
+            persona_name,
+            brand_values,
+            product_description,
+            style_preference,
+            "marketing",
+            base64_image,  # Assuming HF model accepts it
+            api_name="/transform",  # Add this in your HF space
+        )
 
         return {
-            "huggingface_space": {
-                "status": status,
-                "message": message,
-                "space_url": "https://huggingface.co/spaces/Samkelo28/taste-target-visual-generator",
-            },
-            "local_generation": {
-                "status": local_status,
-                "message": "Local generation available as fallback",
-            },
-            "recommendation": "Visual generation is ready to use",
+            "status": "success",
+            "transformed_image": result.get("image_data"),
+            "cultural_elements": result.get("cultural_elements", {}),
         }
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/api/test-visual-generation")
+async def test_visual_generation():
+    """Test visual generation capability by generating a sample poster"""
+    try:
+        persona_name = "Eco-Conscious Explorer"
+        brand_values = "sustainability, innovation"
+        product_description = "Reusable water bottle with thermal insulation"
+        style_preference = "natural organic"
+        image_type = "marketing"  # Poster-like visual
+
+        try:
+            # Initialize the Gradio client
+            client = Client("Samkelo28/taste-target-visual-generator")
+
+            # Actually invoke generation with test data
+            result = await asyncio.to_thread(
+                client.predict,
+                persona_name,
+                brand_values,
+                product_description,
+                style_preference,
+                image_type,
+                api_name="/predict",
+            )
+
+            # Process result image
+            if result and isinstance(result, str) and os.path.exists(result):
+                with open(result, "rb") as img_file:
+                    img_data = img_file.read()
+                    img_base64 = base64.b64encode(img_data).decode("utf-8")
+
+                try:
+                    os.remove(result)
+                except:
+                    pass
+
+                status = "success"
+                message = "Poster successfully generated using Hugging Face"
+
+                return {
+                    "huggingface_space": {
+                        "status": status,
+                        "message": message,
+                        "image_data": f"data:image/png;base64,{img_base64}",
+                        "space_url": "https://huggingface.co/spaces/Samkelo28/taste-target-visual-generator",
+                    },
+                    "local_generation": {
+                        "status": "available",
+                        "message": "Local generation available as fallback",
+                    },
+                    "recommendation": "Hugging Face generation confirmed",
+                }
+
+            else:
+                raise Exception("Invalid image result from Hugging Face Space")
+
+        except Exception as e:
+            return {
+                "huggingface_space": {
+                    "status": "fallback",
+                    "message": f"Could not generate poster using Hugging Face: {str(e)}",
+                    "space_url": "https://huggingface.co/spaces/Samkelo28/taste-target-visual-generator",
+                },
+                "local_generation": {
+                    "status": "available",
+                    "message": "Fallback to local generation enabled",
+                },
+                "recommendation": "Consider debugging Hugging Face space if test fails",
+            }
 
     except Exception as e:
         return {"status": "error", "error": str(e)}

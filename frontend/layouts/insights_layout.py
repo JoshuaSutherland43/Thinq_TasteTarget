@@ -1561,6 +1561,68 @@ class InsightsPage:
                         time.sleep(1)
                         st.rerun()
 
+                        # --- Allow user to upload a base poster for transformation ---
+        uploaded_file = st.file_uploader(
+            "Or Upload Existing Poster to Transform",
+            type=["png", "jpg", "jpeg"],
+            key=f"upload_poster_{persona['persona_id']}_{i}",
+        )
+
+        if uploaded_file is not None:
+            st.image(uploaded_file, caption="Uploaded Poster", use_column_width=True)
+
+            if st.button(
+                f"TRANSFORM UPLOADED POSTER",
+                key=f"transform_poster_{persona['persona_id']}_{i}",
+            ):
+                with st.spinner("Transforming poster based on cultural insights..."):
+                    try:
+                        # Construct payload
+                        files = {"file": uploaded_file.getvalue()}
+                        data = {
+                            "persona_name": persona_name,
+                            "brand_values": brand_values_str,
+                            "product_description": f"{product_desc} - {campaign_type}",
+                            "style_preference": poster_style,
+                            "campaign_type": campaign_type,
+                            "format": poster_format,
+                            "custom_elements": custom_elements,
+                        }
+
+                        response = requests.post(
+                            f"{Config.API_URL}/api/transform-poster",
+                            data=data,
+                            files={"file": uploaded_file},
+                            timeout=90,
+                        )
+
+                        if response.status_code == 200:
+                            result = response.json()
+                            if result.get("status") == "success":
+                                transformed_image = result.get("transformed_image")
+
+                                if "generated_posters" not in st.session_state:
+                                    st.session_state.generated_posters = {}
+                                st.session_state.generated_posters[
+                                    persona["persona_id"]
+                                ] = {
+                                    "image_data": transformed_image,
+                                    "generation_type": "huggingface_ai",
+                                    "cultural_elements": result.get(
+                                        "cultural_elements", {}
+                                    ),
+                                }
+
+                                st.success("Uploaded poster successfully transformed!")
+                                st.rerun()
+                            else:
+                                st.error("Failed to transform uploaded poster.")
+                        else:
+                            st.error(f"Error: {response.status_code}")
+
+                    except Exception as e:
+                        st.error(f"Transformation failed: {str(e)}")
+
             # EXPORT ALL VISUALS SECTION
             # Check if any logos or posters exist
             has_logos = (
