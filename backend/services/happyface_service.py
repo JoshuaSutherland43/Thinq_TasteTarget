@@ -39,39 +39,48 @@ async def generate_visual(request: VisualGenerationRequest):
 
             client = Client("Samkelo28/taste-target-visual-generator")
 
-            # Call the Space with your parameters
-            result = await asyncio.to_thread(
-                client.predict,
-                request.persona_name,
-                request.brand_values,
-                request.product_description,
-                request.style_preference,
-                request.image_type,
-                api_name="/predict",
-            )
+            try:
+                result = await asyncio.to_thread(
+                    client.predict,
+                    request.persona_name,
+                    request.brand_values,
+                    request.product_description,
+                    request.style_preference,
+                    request.image_type,
+                    api_name="/predict",
+                )
+            except Exception as e:
+                raise RuntimeError(f"Hugging Face predict() failed: {e}")
 
-            # The result should be a file path to the generated image
-            if result and isinstance(result, str) and os.path.exists(result):
-                # Read the image file and convert to base64
-                with open(result, "rb") as img_file:
-                    img_data = img_file.read()
-                    img_base64 = base64.b64encode(img_data).decode("utf-8")
+            # Validate result
+            if not result:
+                raise ValueError("No response from Hugging Face Space.")
 
-                # Clean up the temporary file
-                try:
-                    os.remove(result)
-                except:
-                    pass
-
-                logger.info(f"Successfully generated visual for {request.persona_name}")
-
-                return {
-                    "status": "success",
-                    "image_data": f"data:image/png;base64,{img_base64}",
-                    "message": "Visual generated successfully with AI",
-                }
+            if isinstance(result, str):
+                if os.path.exists(result):
+                    with open(result, "rb") as img_file:
+                        img_data = img_file.read()
+                        img_base64 = base64.b64encode(img_data).decode("utf-8")
+                    try:
+                        os.remove(result)
+                    except:
+                        pass
+                    logger.info(
+                        f"Successfully generated visual for {request.persona_name}"
+                    )
+                    return {
+                        "status": "success",
+                        "image_data": f"data:image/png;base64,{img_base64}",
+                        "message": "Visual generated successfully with AI",
+                    }
+                else:
+                    raise FileNotFoundError(
+                        f"File not found at predicted path: {result}"
+                    )
             else:
-                raise Exception("Invalid result from Hugging Face Space")
+                raise TypeError(
+                    f"Unexpected result type from Hugging Face Space: {type(result)}"
+                )
 
         except Exception as hf_error:
             logger.warning(f"Hugging Face Space error: {str(hf_error)}")
