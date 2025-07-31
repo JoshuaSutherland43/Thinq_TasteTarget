@@ -28,18 +28,8 @@ def render_navigation():
     if st.sidebar.button(" CAMPAIGN LIBRARY", key="nav_library"):
         st.session_state.current_page = "library"
 
-    if st.sidebar.button("⚙️ Settings", key="nav_settings"):
+    if st.sidebar.button(" SETTINGS", key="nav_settings"):
         st.session_state.current_page = "settings"
-
-    st.sidebar.markdown("---")
-
-    # Quick Stats
-    st.sidebar.markdown("### QUICK STATS")
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        st.sidebar.metric("Campaigns", "12", "+3")
-    with col2:
-        st.sidebar.metric("Segments", "36", "+8")
 
     st.sidebar.markdown("---")
 

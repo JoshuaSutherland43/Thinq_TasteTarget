@@ -10,13 +10,22 @@ from datetime import datetime
 from core.configuration.config import settings
 import logging
 
+# NEW IMPORT: Import the router from your visual_generation module
+from . import (
+    visual_generation,
+)  # Assuming visual_generation.py is in the same 'api' directory
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# Include the router from visual_generation.py here
+router.include_router(visual_generation.router)
 
 
 @router.post("/generate-targeting", response_model=TasteTargetResponse)
 async def generate_targeting(product_input: ProductInput):
     try:
+        logger.info(f"Generating targeting for product: {product_input.product_name}")
         taste_clusters = await call_qloo_api(product_input.dict())
         personas = await generate_personas_with_openai(product_input, taste_clusters)
         campaign_copies = await generate_campaign_copy_with_openai(

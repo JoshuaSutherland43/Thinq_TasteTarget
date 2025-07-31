@@ -193,7 +193,9 @@ class InsightsPage:
                                 )
 
                                 # Add specific examples for this product
-                                st.markdown(f"**For {data['product_name']}:**")
+                                st.markdown(
+                                    f"**For {data.get('product_name', 'Product')}:**"
+                                )
                                 st.markdown(
                                     f"• Feature {trait}-aligned benefits prominently"
                                 )
@@ -653,7 +655,7 @@ class InsightsPage:
 
                                 # Specific recommendations for this product
                                 st.markdown(
-                                    f"**Specific Recommendations for {data['product_name']}:**"
+                                    f"**Specific Recommendations for {data.get('product_name', 'Product')}:**"
                                 )
 
                                 # Generate contextual recommendations based on personas
@@ -802,7 +804,7 @@ class InsightsPage:
                                 # Cross-promotion opportunities
                                 st.markdown("**Cross-Promotion Opportunities:**")
                                 st.markdown(
-                                    f"• Create {category}-themed campaigns that incorporate {data['product_name']}"
+                                    f"• Create {category}-themed campaigns that incorporate {data.get('product_name', 'Product')}"
                                 )
                                 st.markdown(
                                     f"• Partner with {category} brands that share your values"
@@ -1562,167 +1564,173 @@ class InsightsPage:
                         st.rerun()
 
                         # --- Allow user to upload a base poster for transformation ---
-        uploaded_file = st.file_uploader(
-            "Or Upload Existing Poster to Transform",
-            type=["png", "jpg", "jpeg"],
-            key=f"upload_poster_{persona['persona_id']}_{i}",
-        )
-
-        if uploaded_file is not None:
-            st.image(uploaded_file, caption="Uploaded Poster", use_column_width=True)
-
-            if st.button(
-                f"TRANSFORM UPLOADED POSTER",
-                key=f"transform_poster_{persona['persona_id']}_{i}",
-            ):
-                with st.spinner("Transforming poster based on cultural insights..."):
-                    try:
-                        # Construct payload
-                        files = {"file": uploaded_file.getvalue()}
-                        data = {
-                            "persona_name": persona_name,
-                            "brand_values": brand_values_str,
-                            "product_description": f"{product_desc} - {campaign_type}",
-                            "style_preference": poster_style,
-                            "campaign_type": campaign_type,
-                            "format": poster_format,
-                            "custom_elements": custom_elements,
-                        }
-
-                        response = requests.post(
-                            f"{Config.API_URL}/api/transform-poster",
-                            data=data,
-                            files={"file": uploaded_file},
-                            timeout=90,
-                        )
-
-                        if response.status_code == 200:
-                            result = response.json()
-                            if result.get("status") == "success":
-                                transformed_image = result.get("transformed_image")
-
-                                if "generated_posters" not in st.session_state:
-                                    st.session_state.generated_posters = {}
-                                st.session_state.generated_posters[
-                                    persona["persona_id"]
-                                ] = {
-                                    "image_data": transformed_image,
-                                    "generation_type": "huggingface_ai",
-                                    "cultural_elements": result.get(
-                                        "cultural_elements", {}
-                                    ),
-                                }
-
-                                st.success("Uploaded poster successfully transformed!")
-                                st.rerun()
-                            else:
-                                st.error("Failed to transform uploaded poster.")
-                        else:
-                            st.error(f"Error: {response.status_code}")
-
-                    except Exception as e:
-                        st.error(f"Transformation failed: {str(e)}")
-
-            # EXPORT ALL VISUALS SECTION
-            # Check if any logos or posters exist
-            has_logos = (
-                hasattr(st.session_state, "generated_logos")
-                and st.session_state.generated_logos
-            )
-            has_posters = (
-                hasattr(st.session_state, "generated_posters")
-                and st.session_state.generated_posters
+            uploaded_file = st.file_uploader(
+                "Or Upload Existing Poster to Transform",
+                type=["png", "jpg", "jpeg"],
+                key=f"upload_poster_{persona['persona_id']}_{i}",
             )
 
-            if has_logos or has_posters:
-                st.markdown("---")
-                st.markdown("### EXPORT ALL VISUALS")
+            if uploaded_file is not None:
+                st.image(
+                    uploaded_file, caption="Uploaded Poster", use_column_width=True
+                )
 
-                col1, col2, col3 = st.columns(3)
-                with col2:
-                    if st.button(
-                        "📦 EXPORT ALL LOGOS & POSTERS", use_container_width=True
+                if st.button(
+                    f"TRANSFORM UPLOADED POSTER",
+                    key=f"transform_poster_{persona['persona_id']}_{i}",
+                ):
+                    with st.spinner(
+                        "Transforming poster based on cultural insights..."
                     ):
-                        import zipfile
-                        from io import BytesIO
+                        try:
+                            # Construct payload
+                            files = {"file": uploaded_file.getvalue()}
+                            data = {
+                                "persona_name": persona_name,
+                                "brand_values": brand_values_str,
+                                "product_description": f"{product_desc} - {campaign_type}",
+                                "style_preference": poster_style,
+                                "campaign_type": campaign_type,
+                                "format": poster_format,
+                                "custom_elements": custom_elements,
+                            }
 
-                        # Create a zip file in memory
-                        zip_buffer = BytesIO()
-                        with zipfile.ZipFile(
-                            zip_buffer, "w", zipfile.ZIP_DEFLATED
-                        ) as zip_file:
-                            # Add logos
-                            if has_logos:
-                                for (
-                                    persona_id,
-                                    logo_data,
-                                ) in st.session_state.generated_logos.items():
-                                    # Find persona name
-                                    persona_name = next(
-                                        (
-                                            p["name"]
-                                            for p in data["personas"]
-                                            if p["persona_id"] == persona_id
+                            response = requests.post(
+                                f"{Config.API_URL}/api/transform-poster",
+                                data=data,
+                                files={"file": uploaded_file},
+                                timeout=90,
+                            )
+
+                            if response.status_code == 200:
+                                result = response.json()
+                                if result.get("status") == "success":
+                                    transformed_image = result.get("transformed_image")
+
+                                    if "generated_posters" not in st.session_state:
+                                        st.session_state.generated_posters = {}
+                                    st.session_state.generated_posters[
+                                        persona["persona_id"]
+                                    ] = {
+                                        "image_data": transformed_image,
+                                        "generation_type": "huggingface_ai",
+                                        "cultural_elements": result.get(
+                                            "cultural_elements", {}
                                         ),
-                                        f"Persona_{persona_id}",
+                                    }
+
+                                    st.success(
+                                        "Uploaded poster successfully transformed!"
                                     )
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to transform uploaded poster.")
+                            else:
+                                st.error(f"Error: {response.status_code}")
 
-                                    # Handle both formats
-                                    if isinstance(logo_data, dict):
-                                        image_data = logo_data.get("image_data")
-                                    else:
-                                        image_data = logo_data
+                        except Exception as e:
+                            st.error(f"Transformation failed: {str(e)}")
 
-                                    if image_data:
-                                        # Decode base64 image
-                                        if image_data.startswith("data:image"):
-                                            image_data = image_data.split(",")[1]
+                # EXPORT ALL VISUALS SECTION
 
-                                        image_bytes = base64.b64decode(image_data)
-                                        filename = f"Logos/{persona_name.replace(' ', '_')}_logo.png"
-                                        zip_file.writestr(filename, image_bytes)
+                # Check if any logos or posters exist
+                has_logos = (
+                    hasattr(st.session_state, "generated_logos")
+                    and st.session_state.generated_logos
+                )
+                has_posters = (
+                    hasattr(st.session_state, "generated_posters")
+                    and st.session_state.generated_posters
+                )
 
-                            # Add posters
-                            if has_posters:
-                                for (
-                                    persona_id,
-                                    poster_data,
-                                ) in st.session_state.generated_posters.items():
-                                    # Find persona name
-                                    persona_name = next(
-                                        (
-                                            p["name"]
-                                            for p in data["personas"]
-                                            if p["persona_id"] == persona_id
-                                        ),
-                                        f"Persona_{persona_id}",
-                                    )
+                if has_logos or has_posters:
+                    st.markdown("---")
+                    st.markdown("### EXPORT ALL VISUALS")
 
-                                    # Handle both formats
-                                    if isinstance(poster_data, dict):
-                                        image_data = poster_data.get("image_data")
-                                    else:
-                                        image_data = poster_data
+                    col1, col2, col3 = st.columns(3)
+                    with col2:
+                        if st.button(
+                            "📦 EXPORT ALL LOGOS & POSTERS", use_container_width=True
+                        ):
+                            import zipfile
+                            from io import BytesIO
 
-                                    if image_data:
-                                        # Decode base64 image
-                                        if image_data.startswith("data:image"):
-                                            image_data = image_data.split(",")[1]
+                            # Create a zip file in memory
+                            zip_buffer = BytesIO()
+                            with zipfile.ZipFile(
+                                zip_buffer, "w", zipfile.ZIP_DEFLATED
+                            ) as zip_file:
+                                # Add logos
+                                if has_logos:
+                                    for (
+                                        persona_id,
+                                        logo_data,
+                                    ) in st.session_state.generated_logos.items():
+                                        # Find persona name
+                                        persona_name = next(
+                                            (
+                                                p["name"]
+                                                for p in data["personas"]
+                                                if p["persona_id"] == persona_id
+                                            ),
+                                            f"Persona_{persona_id}",
+                                        )
 
-                                        image_bytes = base64.b64decode(image_data)
-                                        filename = f"Marketing_Posters/{persona_name.replace(' ', '_')}_poster.png"
-                                        zip_file.writestr(filename, image_bytes)
+                                        # Handle both formats
+                                        if isinstance(logo_data, dict):
+                                            image_data = logo_data.get("image_data")
+                                        else:
+                                            image_data = logo_data
 
-                        # Offer download
-                        st.download_button(
-                            label="💾 Download All Visuals (ZIP)",
-                            data=zip_buffer.getvalue(),
-                            file_name=f"TasteTarget_All_Visuals_{data.get('product_name', 'Campaign').replace(' ', '_')}.zip",
-                            mime="application/zip",
-                        )
+                                        if image_data:
+                                            # Decode base64 image
+                                            if image_data.startswith("data:image"):
+                                                image_data = image_data.split(",")[1]
+
+                                            image_bytes = base64.b64decode(image_data)
+                                            filename = f"Logos/{persona_name.replace(' ', '_')}_logo.png"
+                                            zip_file.writestr(filename, image_bytes)
+
+                                # Add posters
+                                if has_posters:
+                                    for (
+                                        persona_id,
+                                        poster_data,
+                                    ) in st.session_state.generated_posters.items():
+                                        # Find persona name
+                                        persona_name = next(
+                                            (
+                                                p["name"]
+                                                for p in data["personas"]
+                                                if p["persona_id"] == persona_id
+                                            ),
+                                            f"Persona_{persona_id}",
+                                        )
+
+                                        # Handle both formats
+                                        if isinstance(poster_data, dict):
+                                            image_data = poster_data.get("image_data")
+                                        else:
+                                            image_data = poster_data
+
+                                        if image_data:
+                                            # Decode base64 image
+                                            if image_data.startswith("data:image"):
+                                                image_data = image_data.split(",")[1]
+
+                                            image_bytes = base64.b64decode(image_data)
+                                            filename = f"Marketing_Posters/{persona_name.replace(' ', '_')}_poster.png"
+                                            zip_file.writestr(filename, image_bytes)
+
+                            # Offer download
+                            st.download_button(
+                                label="💾 Download All Visuals (ZIP)",
+                                data=zip_buffer.getvalue(),
+                                file_name=f"TasteTarget_All_Visuals_{data.get('product_name', 'Campaign').replace(' ', '_')}.zip",
+                                mime="application/zip",
+                            )
 
         with tab4:
-            st.markdown("### ANALYTICS & INSIGHTS")
             st.markdown("### ANALYTICS & INSIGHTS")
 
             # Check if we have data to analyze
@@ -1756,40 +1764,51 @@ class InsightsPage:
                                     hole=0.4,
                                     marker=dict(
                                         colors=[
-                                            "#000000",
-                                            "#333333",
-                                            "#666666",
-                                            "#999999",
-                                            "#CCCCCC",
+                                            "#3b82f6",  # Primary blue
+                                            "#1e40af",  # Darker blue
+                                            "#1f2937",  # Dark gray
+                                            "#60a5fa",  # Light blue
+                                            "#93c5fd",  # Lighter blue
+                                            "#bfdbfe",  # Very light blue
+                                            "#374151",  # Medium gray
                                         ]
                                     ),
-                                    textfont=dict(color="white", size=12),
+                                    textfont=dict(
+                                        color="white", size=12, family="Inter"
+                                    ),
+                                    textinfo="label+percent",
+                                    hovertemplate="<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>",
                                 )
                             ]
                         )
                         fig_pie.update_layout(
                             title={
-                                "text": "INTEREST CATEGORY DISTRIBUTION",
+                                "text": "Interest Category Distribution",
                                 "font": {
-                                    "size": 14,
+                                    "size": 18,
                                     "family": "Inter, sans-serif",
-                                    "color": "#000000",
+                                    "color": "#1f2937",
                                 },
+                                "x": 0.5,
+                                "xanchor": "center",
                             },
-                            font=dict(family="Inter, sans-serif"),
+                            font=dict(family="Inter, sans-serif", color="#374151"),
                             plot_bgcolor="white",
-                            paper_bgcolor="white",
+                            paper_bgcolor="#f8f9fa",
                             height=400,
                             showlegend=True,
                             legend=dict(
-                                font=dict(size=10),
+                                font=dict(size=11, family="Inter", color="#374151"),
                                 orientation="v",
                                 yanchor="middle",
                                 y=0.5,
                                 xanchor="left",
                                 x=1.05,
+                                bgcolor="rgba(255,255,255,0.8)",
+                                bordercolor="#e5e7eb",
+                                borderwidth=1,
                             ),
-                            margin=dict(l=20, r=120, t=40, b=20),
+                            margin=dict(l=20, r=140, t=60, b=20),
                         )
                         st.plotly_chart(fig_pie, use_container_width=True)
                     else:
@@ -1845,32 +1864,64 @@ class InsightsPage:
                                 go.Bar(
                                     x=df["Persona"],
                                     y=df["Complexity Score"],
-                                    marker=dict(color="#000000"),
+                                    marker=dict(
+                                        color="#3b82f6",
+                                        line=dict(color="#1e40af", width=1),
+                                    ),
                                     text=df["Complexity Score"],
                                     textposition="outside",
-                                    textfont=dict(size=12, color="#000000"),
+                                    textfont=dict(size=12, color="#1f2937"),
+                                    hovertemplate="<b>%{x}</b><br>Complexity Score: %{y}<extra></extra>",
                                 )
                             ]
                         )
+
+                        # Bar chart configuration
                         fig_bar.update_layout(
                             title={
-                                "text": "AUDIENCE SEGMENT COMPLEXITY ANALYSIS",
+                                "text": "Audience Segment Complexity Analysis",
                                 "font": {
-                                    "size": 14,
+                                    "size": 18,
                                     "family": "Inter, sans-serif",
-                                    "color": "#000000",
+                                    "color": "#1f2937",
                                 },
+                                "x": 0.5,
+                                "xanchor": "center",
                             },
                             xaxis_title="Audience Segment",
                             yaxis_title="Complexity Score",
-                            font=dict(family="Inter, sans-serif", size=10),
+                            font=dict(
+                                family="Inter, sans-serif", size=11, color="#374151"
+                            ),
                             plot_bgcolor="white",
-                            paper_bgcolor="white",
+                            paper_bgcolor="#f8f9fa",
                             height=400,
                             showlegend=False,
-                            xaxis=dict(tickangle=-45),
-                            yaxis=dict(gridcolor="#E5E5E5", gridwidth=1),
-                            margin=dict(l=40, r=40, t=60, b=80),
+                            xaxis=dict(
+                                tickangle=-45,
+                                tickfont=dict(color="#374151", size=10),
+                                titlefont=dict(
+                                    color="#1f2937", size=12, family="Inter"
+                                ),
+                                gridcolor="#e5e7eb",
+                                gridwidth=1,
+                                linecolor="#d1d5db",
+                                linewidth=1,
+                            ),
+                            yaxis=dict(
+                                gridcolor="#e5e7eb",
+                                gridwidth=1,
+                                tickfont=dict(color="#374151", size=10),
+                                titlefont=dict(
+                                    color="#1f2937", size=12, family="Inter"
+                                ),
+                                linecolor="#d1d5db",
+                                linewidth=1,
+                                zeroline=True,
+                                zerolinecolor="#d1d5db",
+                                zerolinewidth=1,
+                            ),
+                            margin=dict(l=60, r=40, t=80, b=100),
                         )
                         st.plotly_chart(fig_bar, use_container_width=True)
                     else:
@@ -1990,8 +2041,8 @@ class InsightsPage:
                 # Style the dataframe
                 def style_performance(val):
                     if val == "Above":
-                        return "color: #000000; font-weight: bold"
-                    return "color: #666666"
+                        return "color: #3b82f6; font-weight: bold"
+                    return "color: #6b7280"
 
                 styled_df = kpi_df.style.applymap(
                     style_performance, subset=["Performance"]
@@ -2034,43 +2085,78 @@ class InsightsPage:
                 if channel_data:
                     channel_df = pd.DataFrame(channel_data)
 
-                    # Create grouped bar chart
+                    # Create grouped bar chart with modern colors
                     fig_engagement = px.bar(
                         channel_df,
                         x="Channel",
                         y="Predicted Engagement %",
                         color="Persona",
                         barmode="group",
-                        color_discrete_sequence=["#000000", "#666666", "#CCCCCC"],
+                        color_discrete_sequence=[
+                            "#3b82f6",  # Primary blue
+                            "#1e40af",  # Darker blue
+                            "#60a5fa",  # Light blue
+                            "#1f2937",  # Dark gray
+                            "#93c5fd",  # Lighter blue
+                            "#374151",  # Medium gray
+                        ],
                     )
 
                     fig_engagement.update_layout(
                         title={
-                            "text": "PREDICTED ENGAGEMENT RATES BY CHANNEL AND PERSONA",
+                            "text": "Predicted Engagement Rates by Channel and Persona",
                             "font": {
-                                "size": 14,
+                                "size": 18,
                                 "family": "Inter, sans-serif",
-                                "color": "#000000",
+                                "color": "#1f2937",
                             },
+                            "x": 0.5,
+                            "xanchor": "center",
                         },
-                        font=dict(family="Inter, sans-serif", size=10),
+                        font=dict(family="Inter, sans-serif", size=11, color="#374151"),
                         plot_bgcolor="white",
-                        paper_bgcolor="white",
+                        paper_bgcolor="#f8f9fa",
                         height=400,
-                        xaxis=dict(tickangle=-45),
+                        xaxis=dict(
+                            tickangle=-45,
+                            tickfont=dict(color="#374151", size=10),
+                            titlefont=dict(color="#1f2937", size=12, family="Inter"),
+                            gridcolor="#e5e7eb",
+                            gridwidth=1,
+                            linecolor="#d1d5db",
+                            linewidth=1,
+                        ),
                         yaxis=dict(
-                            gridcolor="#E5E5E5",
+                            gridcolor="#e5e7eb",
                             gridwidth=1,
                             title="Engagement Rate (%)",
+                            tickfont=dict(color="#374151", size=10),
+                            titlefont=dict(color="#1f2937", size=12, family="Inter"),
+                            linecolor="#d1d5db",
+                            linewidth=1,
+                            zeroline=True,
+                            zerolinecolor="#d1d5db",
+                            zerolinewidth=1,
                         ),
                         legend=dict(
                             orientation="h",
                             yanchor="bottom",
-                            y=-0.3,
+                            y=-0.35,
                             xanchor="center",
                             x=0.5,
+                            font=dict(size=11, family="Inter", color="#374151"),
+                            bgcolor="rgba(255,255,255,0.9)",
+                            bordercolor="#e5e7eb",
+                            borderwidth=1,
                         ),
-                        margin=dict(l=40, r=40, t=60, b=100),
+                        margin=dict(l=60, r=40, t=80, b=120),
+                    )
+
+                    # Add hover effects and better formatting
+                    fig_engagement.update_traces(
+                        hovertemplate="<b>%{x}</b><br>Persona: %{fullData.name}<br>Engagement: %{y}%<extra></extra>",
+                        marker_line_width=0.5,
+                        marker_line_color="white",
                     )
 
                     st.plotly_chart(fig_engagement, use_container_width=True)
@@ -2083,7 +2169,13 @@ class InsightsPage:
         with tab5:
             st.markdown("### STRATEGIC RECOMMENDATIONS")
 
-            suggestions = data["suggestions"]
+            suggestions = data.get("suggestions", {})
+
+            if isinstance(suggestions, str):
+                try:
+                    suggestions = json.loads(suggestions)
+                except json.JSONDecodeError:
+                    suggestions = {}
 
             col1, col2 = st.columns(2)
 
@@ -2095,18 +2187,18 @@ class InsightsPage:
 
                 st.markdown("#### PARTNERSHIP OPPORTUNITIES")
                 st.markdown("Strategic partnerships to amplify your reach:")
-                for idea in suggestions.get("partnership_ideas", []):
+                for idea in suggestions.get("partnership_ideas", {}):
                     st.markdown(f"• {idea}")
 
             with col2:
                 st.markdown("#### CAMPAIGN ANGLES")
                 st.markdown("High-impact messaging angles to consider:")
-                for angle in suggestions.get("campaign_angles", []):
+                for angle in suggestions.get("campaign_angles", {}):
                     st.markdown(f"• {angle}")
 
                 st.markdown("#### VISUAL DIRECTION")
                 st.markdown("Recommended visual strategy:")
-                for direction in suggestions.get("visual_directions", []):
+                for direction in suggestions.get("visual_directions", {}):
                     st.markdown(f"• {direction}")
 
             # Implementation Roadmap
@@ -2149,7 +2241,7 @@ class InsightsPage:
                 st.download_button(
                     label="DOWNLOAD EXECUTIVE SUMMARY (TXT)",
                     data=report,
-                    file_name=f"TasteTarget_Report_{data['product_name'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.txt",
+                    file_name=f"TasteTarget_Report_{data.get('product_name', 'Product').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.txt",
                     mime="text/plain",
                     use_container_width=True,
                 )
@@ -2159,7 +2251,7 @@ class InsightsPage:
                 st.download_button(
                     label="EXPORT FULL DATA (JSON)",
                     data=json_str,
-                    file_name=f"TasteTarget_Data_{data['product_name'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.json",
+                    file_name=f"TasteTarget_Data_{data.get('product_name', 'Product').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.json",
                     mime="application/json",
                     use_container_width=True,
                 )

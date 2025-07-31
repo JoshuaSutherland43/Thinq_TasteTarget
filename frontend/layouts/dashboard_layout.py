@@ -56,6 +56,9 @@ class DashboardPage:
             "Welcome back. Your AI-powered marketing intelligence platform is ready to transform your campaigns."
         )
 
+        # End of the modern container
+        st.markdown("</div>", unsafe_allow_html=True)
+
         # Key Metrics
         col1, col2, col3, col4 = st.columns(4)
 
@@ -109,6 +112,16 @@ class DashboardPage:
 
         st.markdown("---")
 
+        st.markdown(
+            '<p class="navbar-subtitle">Your metrics at a glance</p>',
+            unsafe_allow_html=True,
+        )
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("📈 Campaigns", "12", "+3")
+        with col2:
+            st.metric("🧠 Segments", "36", "+8")
+
         # Recent Campaigns
         col1, col2 = st.columns([2, 1])
 
@@ -135,9 +148,17 @@ class DashboardPage:
                 st.session_state.current_page = "generate"
                 st.rerun()
 
-            st.button("VIEW ANALYTICS", use_container_width=True)
-            st.button("EXPORT REPORTS", use_container_width=True)
-            st.button("SYNC DATA", use_container_width=True)
+            if st.button("VIEW ANALYTICS", use_container_width=True):
+                st.session_state.current_page = "insights"
+                st.rerun()
+
+            if st.button("EXPORT REPORTS", use_container_width=True):
+                st.session_state.current_page = "insights"
+                st.rerun()
+
+            if st.button("SYNC DATA", use_container_width=True):
+                st.session_state.current_page = "settings"
+                st.rerun()
 
         if st.session_state.current_page == "generate":
             st.markdown("## CAMPAIGN GENERATOR")
@@ -155,5 +176,18 @@ class DashboardPage:
 
         st.markdown("---")
 
-        # Optional Sidebar
-        # Sidebar.render()
+        with st.expander("🆘 NEED HELP?"):
+            st.markdown(
+                """
+                **Getting Started:**
+                1. Enter your product details
+                2. Select brand values and target mood
+                3. Generate AI insights
+                4. Export and implement
+
+                **Support:**
+                - 📧 Email: support@tastetarget.ai
+                - 📞 Phone: 1-800-TASTE-AI
+                - 💬 Live chat available
+                """
+            )

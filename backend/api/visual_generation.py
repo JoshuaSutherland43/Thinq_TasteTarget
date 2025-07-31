@@ -1,31 +1,30 @@
 # External packages
 from fastapi import APIRouter, UploadFile, File, Form
-
 from PIL import Image, ImageDraw, ImageFont
+
+# ... (all other imports from your original code)
 import io
 import math
-from httpx import Client  # or use httpx.AsyncClient if neede
+from httpx import Client
 from gradio_client import Client
-
-# Built-in modules
 import asyncio
 import os
 import base64
 import logging
-import io
+import shutil
+import uuid
 
 # Local or project imports
 from core.configuration.config import settings
 from models.schemas import VisualGenerationRequest
 from fastapi.responses import JSONResponse
-import shutil
-import uuid
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.post("/api/generate-visual")
+# Your existing code for generate_visual and generate_cultural_visual goes here
+@router.post("/generate-visual")
 async def generate_visual(request: VisualGenerationRequest):
     """Generate marketing visual using Hugging Face Space"""
     # [Your existing code remains exactly the same]
@@ -422,8 +421,7 @@ async def generate_visual(request: VisualGenerationRequest):
         return {"status": "error", "message": f"Failed to generate visual: {str(e)}"}
 
 
-# ADD THIS NEW ENDPOINT AFTER THE EXISTING generate_visual ENDPOINT
-@router.post("/api/generate-cultural-visual")
+@router.post("/generate-cultural-visual")
 async def generate_cultural_visual(request: dict):
     """Generate visuals that incorporate cultural insights from Qloo data"""
     try:
