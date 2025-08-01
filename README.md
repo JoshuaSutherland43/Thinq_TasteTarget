@@ -1,5 +1,5 @@
 # 🎯 ThinQ - TasteTarget 
-# *AI-Powered Cultural Intelligence for Modern Marketing*
+## *AI-Powered Cultural Intelligence for Modern Marketing*
 
 **TasteTarget** is a B2B SaaS platform that helps brands and creators reach audiences through *cultural intelligence*, not outdated demographics. In seconds, it generates taste-based customer personas and personalized campaigns — grounded in what people *actually* love.
 
