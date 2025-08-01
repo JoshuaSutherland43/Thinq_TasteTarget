@@ -10,7 +10,8 @@ Developed by: Samkelo Maswana & Joshua Sutherland
 
 **Test the Demo**: [Demo Link](https://tatsetarget-asfbcudwbrhvbmah.canadacentral-01.azurewebsites.net/)
 
-**Youtube Video**:
+**Youtube Video**: https://youtu.be/CBdtAr3OHkE
+
 
 ---
 
