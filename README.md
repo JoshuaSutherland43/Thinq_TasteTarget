@@ -8,7 +8,7 @@ Developed by: Samkelo Maswana & Joshua Sutherland
 
 ## 🚀 Quick Access
 
-**Test the Demo**: [Insert URL]
+**Test the Demo**: [[Insert URL]](https://tatsetarget-asfbcudwbrhvbmah.canadacentral-01.azurewebsites.net/)
 
 **Youtube Video**:
 
