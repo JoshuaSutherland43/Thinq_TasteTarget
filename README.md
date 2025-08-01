@@ -4,11 +4,14 @@
 **TasteTarget** is a B2B SaaS platform that helps brands and creators reach audiences through *cultural intelligence*, not outdated demographics. In seconds, it generates taste-based customer personas and personalized campaigns — grounded in what people *actually* love.
 
 Developed by: Samkelo Maswana & Joshua Sutherland
+
 ---
 
 ## 🚀 Quick Access
 
-**Live Demo**: [Insert URL]
+**Test the Demo**: [Insert URL]
+
+**Youtube Video**:
 
 ---
 
@@ -95,14 +98,14 @@ Developed by: Samkelo Maswana & Joshua Sutherland
 
 ## 📈 Behind the Scenes
 
-### A. Inspiration
+### A. 🧮Inspiration
 Modern marketing still relies on blunt tools like “25–34-year-old urban women.” We flipped that script. Instead of asking *who* your audience is, we ask *what they feel, love, and value*.
 
 TasteTarget is built to shift strategy from demographics to *emotions and culture* — with no compromise on privacy.
 
 ---
 
-### B. What We Learned
+### B. 📖What We Learned
 
 - Simulated Qloo’s clustering using structured GPT-4 prompts  
 - Developed tone-adaptive copy generation (e.g. bold, poetic, witty)  
@@ -110,7 +113,7 @@ TasteTarget is built to shift strategy from demographics to *emotions and cultur
 
 ---
 
-### C. How We Built It
+### C.🔨 How We Built It
 
 1. **Frontend**: Streamlit dashboard with real-time inputs and previews  
 2. **Backend**: FastAPI server to manage prompt logic and API interactions  
@@ -119,7 +122,7 @@ TasteTarget is built to shift strategy from demographics to *emotions and cultur
 
 ---
 
-### D. Core Workflow
+### D.🪱 Core Workflow
 
 - Input brand/product + mood  
 - Generate:
@@ -131,7 +134,7 @@ TasteTarget is built to shift strategy from demographics to *emotions and cultur
 
 ---
 
-### E. Challenges & Wins
+### E.🥇 Challenges & Wins
 
 - ✅ Simulated Qloo API using GPT-4 + smart prompt engineering  
 - 🎨 Balanced UX between creative freedom and data-backed structure  
